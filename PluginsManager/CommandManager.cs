@@ -116,6 +116,11 @@ namespace PluginsManager
                         if (assembly == null)
                         {
                             Logger.Info("GetExternalCommandsFromAssembly", $"В текущем AppDomain сборка не найдена, загрузка из файла...");
+                            
+                            if (File.Exists(dllFile + ":Zone.Identifier"))
+                            {
+                                File.Delete(dllFile + ":Zone.Identifier");
+                            }
                             assembly = Assembly.LoadFile(dllFile);
                         }
                         if (assembly == null || !IsAPIReferenced(assembly))

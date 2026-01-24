@@ -4,7 +4,7 @@ namespace PluginsManager
 {
     public static class Properties
     {
-        public static string Version = "0.1.3";
+        public static string Version = "0.2.0";
         public static string AddinPath = @"..\PluginsManager\PluginsManager.addin";
         public static string DllFolder = @"..\PluginsManager\bin\Build\";
         public static string SubfolderName = "PluginsManager";

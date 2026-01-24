@@ -37,11 +37,33 @@ namespace Build
                 Condition = new FeatureCondition("PROP1 = 1", level: 1)
             };
 
+            var feature25 = new Feature("2025")
+            {
+                Condition = new FeatureCondition("PROP1 = 1", level: 1)
+            };
+
+            var feature26 = new Feature("2026")
+            {
+                Condition = new FeatureCondition("PROP1 = 1", level: 1)
+            };
+
             var project = new Project(Properties.ProjectName,
                 new Dir(@"%AppDataFolder%",
                     new Dir("Autodesk",
                         new Dir("Revit",
                             new Dir("Addins",
+                                new Dir("2026",
+                                    new WixSharp.File(feature26, addin_file),
+                                    new Dir(new Id("SUBFOLDER26"), subfolder_name,
+                                        new Files(feature26, source_dll_folder + "*.*")
+                                        )
+                                    ),
+                                new Dir("2025",
+                                    new WixSharp.File(feature25, addin_file),
+                                    new Dir(new Id("SUBFOLDER25"), subfolder_name,
+                                        new Files(feature25, source_dll_folder + "*.*")
+                                        )
+                                    ),
                                 new Dir("2024",
                                     new WixSharp.File(feature24, addin_file),
                                     new Dir(new Id("SUBFOLDER24"), subfolder_name,

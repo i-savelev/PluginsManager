@@ -16,7 +16,7 @@
         public static class UserConfigFile
         {
             public static string FolderName = "PluginsManager";
-            public static string Name = "config.xml";
+            public static string Name = "user_config.xml";
             public static string XmlSettings = "Settings";
             public static string XmlFolderPath = "FolderPath";
             public static string XmlExceptionTabs = "ExceptionTabs";
@@ -42,10 +42,10 @@
         public static class CmdConfigFile
         {
             public static string ImageFolderName = "img";
-            public static string Name = "config.xml";
+            public static string Name = "commands_config.xml";
             public static string XmlRoot = "Commands";
             public static string XmlCommand = "Command";
-            public static string[] XmlCode = { "CmdCode",  "Имя проекта.Имя класса"};
+            public static string[] XmlCode = { "CmdCode", "Имя проекта.Имя класса" };
             public static string[] XmlTab = { "CmdTab", "Название вкладки" };
             public static string[] XmlName = { "CmdName", "Имя для отображения" };
             public static string[] XmlDescription = { "CmdDescription", "Описание команды" };

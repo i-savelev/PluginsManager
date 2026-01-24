@@ -6,7 +6,7 @@
 </auto-generated>
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="8bd7d784-31d5-4536-9fe2-416a2dd998b8" Name="Plugins Manager" Language="1033" Codepage="Windows-1252" Version="0.1.3" UpgradeCode="8bd7d784-31d5-4536-9fe2-416a2dc958b8" Manufacturer="ilyas">
+  <Product Id="8bd7d784-31d5-4536-9fe2-416a2de968b8" Name="Plugins Manager" Language="1033" Codepage="Windows-1252" Version="0.2.0" UpgradeCode="8bd7d784-31d5-4536-9fe2-416a2dc958b8" Manufacturer="ilyas">
     <Package InstallerVersion="200" Compressed="yes" SummaryCodepage="Windows-1252" InstallPrivileges="limited" Languages="1033" />
     <Media Id="1" Cabinet="Plugins20Manager.cab" EmbedCab="yes" />
 
@@ -15,6 +15,56 @@
         <Directory Id="Autodesk" Name="Autodesk">
           <Directory Id="Revit" Name="Revit">
             <Directory Id="INSTALLDIR" Name="Addins">
+              <Directory Id="_2026_" Name="2026">
+
+                <Component Id="Component.PluginsManager.addin_2481324495" Guid="8bd7d784-31d5-4536-9fe2-416a3ddcd3ce">
+                  <File Id="PluginsManager.addin_2481324495" Source="..\PluginsManager\PluginsManager.addin" />
+                  <RemoveFolder Id="_2026_" On="uninstall" />
+
+                  <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
+                    <RegistryValue Value="0" Type="string" KeyPath="yes" />
+                  </RegistryKey>
+                </Component>
+
+                <Directory Id="SUBFOLDER26" Name="PluginsManager">
+
+                  <Component Id="Component.PluginsManager.dll_1643199736" Guid="8bd7d784-31d5-4536-9fe2-416abc623ef9">
+                    <File Id="PluginsManager.dll_1643199736" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
+                    <RemoveFolder Id="SUBFOLDER26" On="uninstall" />
+
+                    <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
+                      <RegistryValue Value="0" Type="string" KeyPath="yes" />
+                    </RegistryKey>
+                  </Component>
+
+                </Directory>
+              </Directory>
+
+              <Directory Id="_2025_" Name="2025">
+
+                <Component Id="Component.PluginsManager.addin_2946916045" Guid="8bd7d784-31d5-4536-9fe2-416a300eebed">
+                  <File Id="PluginsManager.addin_2946916045" Source="..\PluginsManager\PluginsManager.addin" />
+                  <RemoveFolder Id="_2025_" On="uninstall" />
+
+                  <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
+                    <RegistryValue Value="0" Type="string" KeyPath="yes" />
+                  </RegistryKey>
+                </Component>
+
+                <Directory Id="SUBFOLDER25" Name="PluginsManager">
+
+                  <Component Id="Component.PluginsManager.dll_1219181189" Guid="8bd7d784-31d5-4536-9fe2-416ad809cca1">
+                    <File Id="PluginsManager.dll_1219181189" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
+                    <RemoveFolder Id="SUBFOLDER25" On="uninstall" />
+
+                    <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
+                      <RegistryValue Value="0" Type="string" KeyPath="yes" />
+                    </RegistryKey>
+                  </Component>
+
+                </Directory>
+              </Directory>
+
               <Directory Id="_2024_" Name="2024">
 
                 <Component Id="Component.PluginsManager.addin_1412529645" Guid="8bd7d784-31d5-4536-9fe2-416afbee085e">
@@ -149,6 +199,26 @@
 
     <UIRef Id="WixUI_FeatureTree" />
     <UIRef Id="WixUI_ErrorProgressText" />
+
+    <Feature Id="_2026__" Title="2026" Absent="allow" Level="1">
+      <Condition Level="1"><![CDATA[PROP1 = 1]]></Condition>
+
+      <ComponentRef Id="Component.PluginsManager.addin_2481324495" />
+      <ComponentRef Id="Component.PluginsManager.dll_1643199736" />
+      <ComponentRef Id="Autodesk" />
+      <ComponentRef Id="Revit" />
+      <ComponentRef Id="INSTALLDIR" />
+    </Feature>
+
+    <Feature Id="_2025__" Title="2025" Absent="allow" Level="1">
+      <Condition Level="1"><![CDATA[PROP1 = 1]]></Condition>
+
+      <ComponentRef Id="Component.PluginsManager.addin_2946916045" />
+      <ComponentRef Id="Component.PluginsManager.dll_1219181189" />
+      <ComponentRef Id="Autodesk" />
+      <ComponentRef Id="Revit" />
+      <ComponentRef Id="INSTALLDIR" />
+    </Feature>
 
     <Feature Id="_2024__" Title="2024" Absent="allow" Level="1">
       <Condition Level="1"><![CDATA[PROP1 = 1]]></Condition>

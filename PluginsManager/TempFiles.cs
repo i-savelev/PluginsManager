@@ -1,23 +1,27 @@
 ﻿using System;
 using System.IO;
 using System.Windows.Forms;
+using System.Xml.Linq;
 
 
 namespace PluginsManager
 {
-    public class TempFiles
+    public static class TempFiles
     {
-        public string TempDirectory;
-        public TempFiles()
+        public static void Init()
         {
-            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData); 
-            TempDirectory = Path.Combine(appDataPath, Const.UserConfigFile.FolderName, "temp");
+            Directory.CreateDirectory(PathManager.tempDllDir); // Убедимся, что папка есть
+            Logger.Info("TempFiles", $"Временная папка плагина: [{PathManager.tempDllDir}]");
         }
-        public void CreateTemp(string sourceDirectory)
+
+        public static void CopyToTemp(string sourceDirectory)
         {
+            Logger.Info("TempFiles", $"Копирование файлов во временную папку...");
             try
             {
+                Logger.Info("CreateTemp", $"Исходная папка: [{sourceDirectory}]");
                 double totalSize = GetDirectorySize(sourceDirectory);
+                Logger.Info("CreateTemp", $"размер исходной папки: [{totalSize}]");
                 double totalSizeMb = Math.Round(totalSize / 1024.0 / 1024.0, 2);
                 if (totalSizeMb > 50)
                 {
@@ -29,25 +33,29 @@ namespace PluginsManager
 
                     if (result == DialogResult.Yes)
                     {
-                        if (Directory.Exists(TempDirectory))
+                        if (Directory.Exists(PathManager.tempDllDir))
                         {
-                            Directory.Delete(TempDirectory, recursive: true);
+                            Directory.Delete(PathManager.tempDllDir, recursive: true);
+                            Logger.Info("CreateTemp", $"Папка существует, удаление папки: [{PathManager.tempDllDir}]");
                         }
-                        CopyDirectory(sourceDirectory, TempDirectory);
+                        CopyDirectory(sourceDirectory, PathManager.tempDllDir);
                     }
                 }
                 else
                 {
-                    if (Directory.Exists(TempDirectory))
+                    if (Directory.Exists(PathManager.tempDllDir))
                     {
-                        Directory.Delete(TempDirectory, recursive: true);
+                        Directory.Delete(PathManager.tempDllDir, recursive: true);
+                        Logger.Info("CreateTemp", $"Папка существует, удаление папки: [{PathManager.tempDllDir}]");
                     }
-                    CopyDirectory(sourceDirectory, TempDirectory);
+                    CopyDirectory(sourceDirectory, PathManager.tempDllDir);
+                    Logger.Info("CreateTemp", $"Папка скопирована: [{sourceDirectory}]->[{PathManager.tempDllDir}]");
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Произошла ошибка: {ex.Message}");
+                Logger.Error("CreateTemp", $"Произошла ошибка: {ex.Message}");
             }
         }
 
@@ -83,7 +91,6 @@ namespace PluginsManager
             {
                 size += GetDirectorySize(dir);
             }
-
             return size;
         }
     }

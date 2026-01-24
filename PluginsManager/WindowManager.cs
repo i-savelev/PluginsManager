@@ -1,4 +1,6 @@
 ﻿using Autodesk.Revit.UI;
+using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -11,19 +13,14 @@ namespace PluginsManager
         public ExternalEvent External_event { get; set; }
         public PluginsManagerForm Window { get; set; }
         public CommandManager Command_manager { get; set; }
-        public ConfigManager File_manager { get; set; }
         public UIApplication UiApp { get; set; }
-        public ConfigManager ConfigManager { get; set; }
-        public TempFiles Temp { get; set; }
-        public WindowManager(CommandManager command_manager, ConfigManager file_manager, ConfigManager configManager, TempFiles tempFiles, UIApplication uiApp)
+
+        public WindowManager(CommandManager command_manager, UIApplication uiApp)
         {
             Command_manager = command_manager;
-            File_manager = file_manager;
-            ConfigManager = configManager;
             UiApp = uiApp;
             External_event = Command_manager.ExternalEvent;
             PluginsManagerForm window = new PluginsManagerForm();
-            Temp = tempFiles;
             Window = window;
             window.Text = $"Менеджер плагинов";
             window.groupBox1.Text = $"Информация";
@@ -41,12 +38,16 @@ namespace PluginsManager
 
         private void ChangeFolder()
         {
-            var dialogResult = File_manager.SetPathToUserConfigFileDialog();
+            Logger.Separator();
+            Logger.Info("ChangeFolder", $"Изменение пути к корневой папке...");
+            var dialogResult = UserConfig.SetPathToUserConfigFileDialog();
             if (dialogResult)
             {
-                Temp.CreateTemp(File_manager.FolderDllPath);
-                ConfigManager.GetDllSettings(Temp.TempDirectory);
-                Command_manager.Refresh(Temp.TempDirectory);
+                UserConfig.GetUserSettings();
+                CommandConfig.CreateConfigFile();
+                CommandConfig.GetDllSettings();
+                Dllmanager.CopyDll();
+                Command_manager.Refresh(PathManager.tempDllDir);
                 Window.tabControl.TabPages.Clear();
                 CreateTabs();
             }
@@ -54,9 +55,12 @@ namespace PluginsManager
 
         private void Refrash()
         {
-            Temp.CreateTemp(File_manager.FolderDllPath);
-            ConfigManager.GetDllSettings(Temp.TempDirectory);
-            Command_manager.Refresh(Temp.TempDirectory);
+            Logger.Separator();
+            Logger.Info("ChangeFolder", $"Обновление...");
+            TempFiles.CopyToTemp(PathManager.sourceDir);
+            CommandConfig.GetDllSettings();
+            Dllmanager.CopyDll();
+            Command_manager.Refresh(PathManager.tempDllDir);
             Window.tabControl.TabPages.Clear();
             CreateTabs();
         }
@@ -87,26 +91,39 @@ namespace PluginsManager
 
         private void OpenGitHub()
         {
-            System.Diagnostics.Process.Start("https://github.com/i-savelev/PluginsManager");
-            Window.Close();
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://github.com/i-savelev/PluginsManager",
+                    UseShellExecute = true // ← обязательно!
+                });
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Ошибка", $"Не удалось открыть браузер:\n{ex.Message}");
+            }
         }
 
         public void CreateTabs()
         {
+            Logger.Info("CreateTabs", $"Отрисовка вкладок...");
             if (Command_manager.CommandsDictionary != null)
             {
                 foreach (var tab in Command_manager.CommandsDictionary)
                 {
-                    if (string.Equals(File_manager.Post, UserConfigFile.ManagerPost, System.StringComparison.InvariantCultureIgnoreCase))
+                    Logger.Info("CreateTabs", $"Вкладка {tab}");
+                    if (string.Equals(UserConfig.post, UserConfigFile.ManagerPost, System.StringComparison.InvariantCultureIgnoreCase))
                     {
-                        if (!File_manager.ExceptionTabs.Contains(tab.Key))
+                        Logger.Info("CreateTabs", $"Роль пользователя {UserConfig.post}, добавляем вкладки с '#'");
+                        if (!UserConfig.exceptionTabs.Contains(tab.Key))
                         {
                             CreateNewTab(tab.Key);
                         }
                     }
                     else
                     {
-                        if (!File_manager.ExceptionTabs.Contains(tab.Key) & !tab.Key.Contains('#'))
+                        if (!UserConfig.exceptionTabs.Contains(tab.Key) & !tab.Key.Contains('#'))
                         {
                             CreateNewTab(tab.Key);
                         }

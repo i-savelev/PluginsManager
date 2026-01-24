@@ -76,7 +76,8 @@
   <ItemGroup>
     <Compile Include="AllCommandsInFolder.cs" />
     <Compile Include="App.cs" />
-    <Compile Include="ConfigManager.cs" />
+    <Compile Include="CommandConfig.cs" />
+    <Compile Include="UserConfig.cs" />
     <Compile Include="Const.cs" />
     <Compile Include="Debugger\Debugger.cs">
       <SubType>Form</SubType>
@@ -85,7 +86,10 @@
       <DependentUpon>Debugger.cs</DependentUpon>
     </Compile>
     <Compile Include="Debugger\IsDebugWindow.cs" />
+    <Compile Include="Dllmanager.cs" />
     <Compile Include="Handler.cs" />
+    <Compile Include="Logger.cs" />
+    <Compile Include="PathManager.cs" />
     <Compile Include="PluginManager.cs" />
     <Compile Include="PluginManagerForm.cs">
       <SubType>Form</SubType>

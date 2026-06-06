@@ -1,8 +1,7 @@
-﻿using System;
+using System;
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
-using System.Xml.Linq;
-
 
 namespace PluginsManager
 {
@@ -10,33 +9,34 @@ namespace PluginsManager
     {
         public static void Init()
         {
-            Directory.CreateDirectory(PathManager.tempDllDir); // Убедимся, что папка есть
-            Logger.Info("TempFiles", $"Временная папка плагина: [{PathManager.tempDllDir}]");
+            Directory.CreateDirectory(PathManager.tempDllDir);
+            Logger.Info($"Временная папка плагина: [{PathManager.tempDllDir}]");
         }
 
         public static void CopyToTemp(string sourceDirectory)
         {
-            Logger.Info("TempFiles", $"Копирование файлов во временную папку...");
+            var stopwatch = Stopwatch.StartNew();
+            Logger.Info($"Копирование файлов во временную папку из [{sourceDirectory}]");
             try
             {
-                Logger.Info("CreateTemp", $"Исходная папка: [{sourceDirectory}]");
                 double totalSize = GetDirectorySize(sourceDirectory);
-                Logger.Info("CreateTemp", $"размер исходной папки: [{totalSize}]");
                 double totalSizeMb = Math.Round(totalSize / 1024.0 / 1024.0, 2);
+                Logger.Info($"Исходная папка: размер = {totalSizeMb:F2} MB");
                 if (totalSizeMb > 50)
                 {
                     DialogResult result = MessageBox.Show(
-                        $"Размер папки {totalSizeMb}, хотите ее загрузить?",
+                        $"Размер папки {totalSizeMb:F2} MB, хотите ее загрузить?",
                         "Подтверждение",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question);
 
+                    Logger.Info($"Подтверждение копирования большой папки: {result}");
                     if (result == DialogResult.Yes)
                     {
                         if (Directory.Exists(PathManager.tempDllDir))
                         {
                             Directory.Delete(PathManager.tempDllDir, recursive: true);
-                            Logger.Info("CreateTemp", $"Папка существует, удаление папки: [{PathManager.tempDllDir}]");
+                            Logger.Info($"Удаление предыдущей временной папки [{PathManager.tempDllDir}]");
                         }
                         CopyDirectory(sourceDirectory, PathManager.tempDllDir);
                     }
@@ -46,16 +46,18 @@ namespace PluginsManager
                     if (Directory.Exists(PathManager.tempDllDir))
                     {
                         Directory.Delete(PathManager.tempDllDir, recursive: true);
-                        Logger.Info("CreateTemp", $"Папка существует, удаление папки: [{PathManager.tempDllDir}]");
+                        Logger.Info($"Удаление предыдущей временной папки [{PathManager.tempDllDir}]");
                     }
                     CopyDirectory(sourceDirectory, PathManager.tempDllDir);
-                    Logger.Info("CreateTemp", $"Папка скопирована: [{sourceDirectory}]->[{PathManager.tempDllDir}]");
                 }
+
+                stopwatch.Stop();
+                Logger.Info($"Копирование завершено за {stopwatch.ElapsedMilliseconds} ms");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Произошла ошибка: {ex.Message}");
-                Logger.Error("CreateTemp", $"Произошла ошибка: {ex.Message}");
+                stopwatch.Stop();
+                Logger.Exception(ex, $"Ошибка при копировании во временную папку через {stopwatch.ElapsedMilliseconds} ms");
             }
         }
 
@@ -66,14 +68,12 @@ namespace PluginsManager
             foreach (string file in Directory.GetFiles(sourceDir))
             {
                 string destFile = Path.Combine(destinationDir, Path.GetFileName(file));
-
                 File.Copy(file, destFile, overwrite: true);
             }
 
             foreach (string dir in Directory.GetDirectories(sourceDir))
             {
                 string destSubDir = Path.Combine(destinationDir, Path.GetFileName(dir));
-
                 CopyDirectory(dir, destSubDir);
             }
         }

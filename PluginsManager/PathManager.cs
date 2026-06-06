@@ -1,7 +1,5 @@
-﻿using PluginsManager;
+using PluginsManager;
 using System;
-using System.IO;
-using System.Windows.Shapes;
 using static PluginsManager.Const;
 using Path = System.IO.Path;
 
@@ -29,10 +27,20 @@ public static class PathManager
             "Temp", "PluginsManager", "parsing"
             );
         parsingDllListPath = Path.Combine(tempDllDir, "dll_path.xml");
+
+        Logger.Info($"userFolderFile = [{userFolderFile}]");
+        Logger.Info($"userConfigFile = [{userConfigFile}]");
+        Logger.Info($"tempDllDir = [{tempDllDir}]");
+        Logger.Info($"tempComandConfigFile = [{tempComandConfigFile}]");
+        Logger.Info($"parsingDllDir = [{parsingDllDir}]");
+        Logger.Info($"parsingDllListPath = [{parsingDllListPath}]");
     }
+
     public static void SetSourcePath(string _sourcePath)
     {
         sourceDir = _sourcePath;
         sourceComandConfigFile = Path.Combine(sourceDir, CmdConfigFile.Name);
+        Logger.Info($"sourceDir = [{sourceDir}]");
+        Logger.Info($"sourceComandConfigFile = [{sourceComandConfigFile}]");
     }
 }

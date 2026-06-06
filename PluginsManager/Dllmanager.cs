@@ -1,7 +1,9 @@
-﻿using PluginsManager;
+using PluginsManager;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Xml.Linq;
 
 public static class Dllmanager
@@ -11,121 +13,139 @@ public static class Dllmanager
 
     private static void _findDll(string rootFolderPath)
     {
-        if (string.IsNullOrWhiteSpace(rootFolderPath) || !Directory.Exists(rootFolderPath))
-            return;
+        _sourceDllList.Clear();
 
-        _sourceDllList.Clear(); // очищаем предыдущие результаты
+        if (string.IsNullOrWhiteSpace(rootFolderPath))
+        {
+            Logger.Warning("Корневая папка для поиска DLL пустая");
+            return;
+        }
+
+        if (!Directory.Exists(rootFolderPath))
+        {
+            Logger.Warning($"Корневая папка для поиска DLL не существует: [{rootFolderPath}]");
+            return;
+        }
 
         try
         {
-            // Ищем все .dll рекурсивно
             var dllFiles = Directory.GetFiles(rootFolderPath, "*.dll", SearchOption.AllDirectories);
-
             foreach (string dllPath in dllFiles)
             {
                 _sourceDllList.Add(Path.GetFullPath(dllPath));
-                //IsDebugWindow.AddRow(dllPath);
             }
+
+            Logger.Info($"Найдено DLL в исходной папке: {_sourceDllList.Count}");
         }
         catch (Exception ex)
         {
-            // Например, нет доступа к какой-то папке
-            //IsDebugWindow.AddRow($"Ошибка поиска DLL: {ex.Message}");
+            Logger.Exception(ex, $"Ошибка поиска DLL в [{rootFolderPath}]");
         }
     }
 
     public static void CopyDll()
     {
+        var stopwatch = Stopwatch.StartNew();
         _parserDllList.Clear();
-        Dllmanager._findDll(PathManager.tempDllDir);
-        Logger.Info("CopyDll", $"Копирование dll во временные папки...");
-        Logger.Info("CopyDll", $"Исходная папка {PathManager.tempDllDir}");
+        _findDll(PathManager.tempDllDir);
 
-        _clearFolder(PathManager.parsingDllDir);
+        Logger.Info($"Подготовка parsing-кэша из [{PathManager.tempDllDir}]");
+        var cleanupStats = _clearFolder(PathManager.parsingDllDir);
+
+        int copied = 0;
+        int reused = 0;
+        int missing = 0;
+        int failed = 0;
 
         foreach (string sourcePath in _sourceDllList)
         {
-
             if (!File.Exists(sourcePath))
+            {
+                missing += 1;
+                Logger.Warning($"Источник DLL не найден: [{sourcePath}]");
                 continue;
+            }
+
             string fileName = Path.GetFileName(sourcePath);
             var fileInfo = new FileInfo(sourcePath);
-            DateTime creationTime = fileInfo.LastWriteTime;
-
-
-            var name = $"{fileName.Replace(".dll", "")}&{creationTime:yyyyMMddHHmmssfff}";
-            string targetDir = Path.Combine(PathManager.parsingDllDir, name);
+            DateTime lastWriteTime = fileInfo.LastWriteTime;
+            var cacheFolderName = $"{fileName.Replace(".dll", "")}&{lastWriteTime:yyyyMMddHHmmssfff}";
+            string targetDir = Path.Combine(PathManager.parsingDllDir, cacheFolderName);
             Directory.CreateDirectory(targetDir);
-
 
             string destPath = Path.Combine(targetDir, fileName);
             try
             {
                 File.Copy(sourcePath, destPath, overwrite: false);
+                copied += 1;
+                Logger.Info($"Новая DLL добавлена в parsing: [{fileName}] -> [{cacheFolderName}]");
+            }
+            catch (IOException)
+            {
+                reused += 1;
+                Logger.Debug($"DLL уже присутствует в parsing и будет переиспользована: [{fileName}] -> [{cacheFolderName}]");
             }
             catch (Exception ex)
             {
-                Logger.Info("CopyDll", $"dll уже существует {destPath}");
-                Logger.Warning("CopyDll", $"{ex.Message}");
+                failed += 1;
+                Logger.Exception(ex, $"Не удалось подготовить DLL [{sourcePath}]");
             }
 
             _parserDllList.Add(destPath);
-            Logger.Info("CopyDll", $"dll: {destPath}");
-
         }
+
         _saveDllListToXml(PathManager.tempDllDir);
+        stopwatch.Stop();
+        Logger.Info(
+            $"Подготовка parsing завершена за {stopwatch.ElapsedMilliseconds} ms | source = {_sourceDllList.Count}, copied = {copied}, reused = {reused}, lockedFolders = {cleanupStats.Locked}, removedFolders = {cleanupStats.Removed}, missing = {missing}, failed = {failed}, listed = {_parserDllList.Count}"
+        );
     }
 
     private static void _saveDllListToXml(string folder)
     {
-        Logger.Info("SaveDllListToXml", $"Сохранение путей к dll в xml файл...");
-
+        Logger.Info($"Сохранение путей DLL в XML [{folder}]");
         var xmlFilePath = Path.Combine(folder, "dll_path.xml");
-        Logger.Info("SaveDllListToXml", $"Путь к файлу: {xmlFilePath}");
+
         if (_parserDllList == null || _parserDllList.Count == 0)
         {
-            Logger.Warning("SaveDllListToXml", $"Списоу dll пустой");
+            Logger.Warning("Список DLL пустой, xml не будет обновлен");
             return;
         }
+
         try
         {
             XDocument doc;
 
-            // Загружаем существующий XML или создаём новый
             if (File.Exists(xmlFilePath))
             {
                 doc = XDocument.Load(xmlFilePath);
-                Logger.Info("SaveDllListToXml", $"Файл {xmlFilePath} существует");
+                Logger.Debug($"Файл списка DLL уже существует: [{xmlFilePath}]");
             }
             else
             {
                 doc = new XDocument(new XElement("root"));
-                Logger.Info("SaveDllListToXml", $"Файла {xmlFilePath} не существует. Создание нового");
+                Logger.Info($"Файл списка DLL не существует, создается новый: [{xmlFilePath}]");
             }
 
-            // Убедимся, что есть корневой элемент
             if (doc.Root == null)
             {
                 doc.Add(new XElement("root"));
             }
 
             var root = doc.Root;
-
-            // Опционально: очистить старые записи, если нужно хранить только актуальные
             root.Elements("dll").Remove();
 
-            // Добавляем каждый путь как <dll>...</dll>
             foreach (string dllPath in _parserDllList)
             {
                 root.Add(new XElement("dll", dllPath));
             }
 
-            // Сохраняем с отступами для читаемости
             doc.Save(xmlFilePath);
+            Logger.Info($"XML со списком DLL сохранен, записей: {_parserDllList.Count}");
         }
         catch (Exception ex)
         {
-            Logger.Warning("SaveDllListToXml", $"Ошибка сохранения XML: {ex.Message}");
+            Logger.Exception(ex, $"Ошибка сохранения XML со списком DLL [{xmlFilePath}]");
         }
     }
 
@@ -133,83 +153,115 @@ public static class Dllmanager
     {
         _parserDllList.Clear();
         var xmlFilePath = PathManager.parsingDllListPath;
-        Logger.Info("LoadDllListFromXml", $"Чтение списка dll из файла {xmlFilePath}");
+        Logger.Info($"Чтение списка DLL из файла [{xmlFilePath}]");
+
         if (string.IsNullOrWhiteSpace(xmlFilePath) || !File.Exists(xmlFilePath))
         {
-            Logger.Warning("LoadDllListFromXml", $"XML-файл не найден или путь пуст.");
+            Logger.Warning("XML-файл со списком DLL не найден или путь пуст");
+            return;
         }
+
         try
         {
             XDocument doc = XDocument.Load(xmlFilePath);
-
-            // Убеждаемся, что есть корневой элемент
             if (doc.Root == null)
             {
-                Logger.Info("LoadDllListFromXml", $"XML-файл пуст или не содержит корневого элемента.");
+                Logger.Warning("XML-файл списка DLL пуст или не содержит корневого элемента");
+                return;
             }
 
-            // Извлекаем все элементы <dll>
-            var dllElements = doc.Root.Elements("dll");
+            int loaded = 0;
+            int missing = 0;
 
-            foreach (var element in dllElements)
+            foreach (var element in doc.Root.Elements("dll"))
             {
                 string path = element.Value?.Trim();
                 if (!string.IsNullOrEmpty(path) && File.Exists(path))
                 {
                     _parserDllList.Add(path);
-                    Logger.Info("LoadDllListFromXml", $"DLL: {path}");
+                    loaded += 1;
+                    Logger.Debug($"DLL из xml: [{path}]");
                 }
                 else if (!string.IsNullOrEmpty(path))
                 {
-                    Logger.Warning("LoadDllListFromXml", $"DLL не найден: {path}");
+                    missing += 1;
+                    Logger.Warning($"DLL из xml не найдена: [{path}]");
                 }
             }
+
+            Logger.Info($"Список DLL загружен из xml: loaded = {loaded}, missing = {missing}");
         }
         catch (Exception ex)
         {
-            Logger.Warning("LoadDllListFromXml", $"Ошибка загрузки XML: {ex.Message}");
+            Logger.Exception(ex, $"Ошибка загрузки XML со списком DLL [{xmlFilePath}]");
         }
     }
 
     public static List<string> DllList()
     {
-        Logger.Debug("DllList", $"Список актуальных dll...");
+        Logger.Debug($"Актуальный список DLL: {_parserDllList.Count} шт.");
         foreach (var dll in _parserDllList)
         {
-            Logger.Debug("DllList", $"{dll}");
+            Logger.Debug(dll);
         }
         return _parserDllList;
     }
 
-    private static void _clearFolder(string folder)
+    private static CleanupStats _clearFolder(string folder)
     {
-        Logger.Info("ClearFolder", $"Удаление неиспользуемых сборок...");
+        Logger.Info($"Очистка папки промежуточных сборок [{folder}]");
+        var stats = new CleanupStats();
+
         try
         {
-            if (Directory.Exists(folder))
+            if (!Directory.Exists(folder))
             {
-                foreach (string subDir in Directory.GetDirectories(folder))
+                Directory.CreateDirectory(folder);
+                Logger.Info($"Папка промежуточных сборок создана: [{folder}]");
+                return stats;
+            }
+
+            foreach (string subDir in Directory.GetDirectories(folder))
+            {
+                try
                 {
-                    try
-                    {
-                        Directory.Delete(subDir, recursive: true);
-                        Logger.Info("ClearFolder", $"Удалена старая подпапка: {subDir}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Warning("ClearFolder", $"Не удалось удалить подпапку {subDir}: {ex.Message}");
-                        // Продолжаем, даже если не удалось удалить одну из папок
-                    }
+                    Directory.Delete(subDir, recursive: true);
+                    stats.Removed += 1;
+                    Logger.Debug($"Удалена старая подпапка: [{subDir}]");
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    stats.Locked += 1;
+                    Logger.Info($"Подпапка parsing занята и оставлена без удаления: [{Path.GetFileName(subDir)}]");
+                }
+                catch (IOException)
+                {
+                    stats.Locked += 1;
+                    Logger.Info($"Подпапка parsing используется и оставлена без удаления: [{Path.GetFileName(subDir)}]");
+                }
+                catch (Exception ex)
+                {
+                    stats.Failed += 1;
+                    Logger.Exception(ex, $"Не удалось удалить подпапку parsing [{subDir}]");
                 }
             }
-            else
-            {
-                Logger.Error("ClearFolder", $"Папка не существует {folder}");
-            }
+
+            var total = Directory.GetDirectories(folder).Length;
+            Logger.Info($"Очистка parsing завершена | total = {total}, removed = {stats.Removed}, locked = {stats.Locked}, failed = {stats.Failed}");
         }
         catch (Exception ex)
         {
-            Logger.Error("ClearFolder", $"Ошибка при очистке директории {folder}: {ex.Message}");
+            stats.Failed += 1;
+            Logger.Exception(ex, $"Ошибка при очистке директории [{folder}]");
         }
+
+        return stats;
+    }
+
+    private class CleanupStats
+    {
+        public int Removed { get; set; }
+        public int Locked { get; set; }
+        public int Failed { get; set; }
     }
 }

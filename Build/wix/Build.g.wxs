@@ -6,7 +6,7 @@
 </auto-generated>
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="8bd7d784-31d5-4536-9fe2-416a2de968b8" Name="Plugins Manager" Language="1033" Codepage="Windows-1252" Version="0.2.0" UpgradeCode="8bd7d784-31d5-4536-9fe2-416a2dc958b8" Manufacturer="ilyas">
+  <Product Id="8bd7d784-31d5-4536-9fe2-416a2de978b8" Name="Plugins Manager" Language="1033" Codepage="Windows-1252" Version="0.2.1" UpgradeCode="8bd7d784-31d5-4536-9fe2-416a2dc958b8" Manufacturer="user">
     <Package InstallerVersion="200" Compressed="yes" SummaryCodepage="Windows-1252" InstallPrivileges="limited" Languages="1033" />
     <Media Id="1" Cabinet="Plugins20Manager.cab" EmbedCab="yes" />
 

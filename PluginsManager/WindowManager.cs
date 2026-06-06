@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.UI;
+using Autodesk.Revit.UI;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -22,8 +22,8 @@ namespace PluginsManager
             External_event = Command_manager.ExternalEvent;
             PluginsManagerForm window = new PluginsManagerForm();
             Window = window;
-            window.Text = $"Менеджер плагинов";
-            window.groupBox1.Text = $"Информация";
+            window.Text = "Менеджер плагинов";
+            window.groupBox1.Text = "Информация";
             window.tabControl.Font = new Font("Microsoft Sans Serif", 10, FontStyle.Regular);
             window.toolStripButton1.Click += (s, e) => ChangeFolder();
             window.toolStripButton1.Text = "Выбрать папку";
@@ -32,15 +32,18 @@ namespace PluginsManager
             window.toolStripButton3.Click += (s, e) => { Refrash(); };
             window.toolStripButton3.Text = "Обновить";
             window.richTextBox1.LinkClicked += RichTextBox1_LinkClicked;
+            Logger.Info("Создание и отображение основного окна");
             CreateTabs();
+            Logger.Info($"Окно подготовлено | tabs = {Window.tabControl.TabPages.Count}");
             window.ShowDialog();
         }
 
         private void ChangeFolder()
         {
             Logger.Separator();
-            Logger.Info("ChangeFolder", $"Изменение пути к корневой папке...");
+            Logger.Info("Изменение пути к корневой папке");
             var dialogResult = UserConfig.SetPathToUserConfigFileDialog();
+            Logger.Info($"Диалог выбора новой папки завершен: {dialogResult}");
             if (dialogResult)
             {
                 UserConfig.GetUserSettings();
@@ -55,21 +58,26 @@ namespace PluginsManager
 
         private void Refrash()
         {
+            var stopwatch = Stopwatch.StartNew();
             Logger.Separator();
-            Logger.Info("ChangeFolder", $"Обновление...");
+            Logger.Info($"Обновление UI и данных из папки [{PathManager.sourceDir}]");
             TempFiles.CopyToTemp(PathManager.sourceDir);
             CommandConfig.GetDllSettings();
             Dllmanager.CopyDll();
             Command_manager.Refresh(PathManager.tempDllDir);
             Window.tabControl.TabPages.Clear();
             CreateTabs();
+            stopwatch.Stop();
+            Logger.Info($"Обновление завершено за {stopwatch.ElapsedMilliseconds} ms");
         }
 
         void table_CellClickRunCommand(object sender, DataGridViewCellEventArgs e, DataGridView dataGridView)
         {
             if (e.RowIndex < 0 || e.ColumnIndex != dataGridView.Columns["Выбор"].Index) return;
             GlobComandName.Name = dataGridView["id", e.RowIndex].Value.ToString();
+            Logger.Info($"Выбрана команда для запуска: [{GlobComandName.Name}]");
             External_event.Raise();
+            Logger.Debug("ExternalEvent поднят, окно будет закрыто");
             Window.Close();
         }
 
@@ -78,11 +86,13 @@ namespace PluginsManager
             if (e.RowIndex < 0) return;
             string code = dataGridView["id", e.RowIndex].Value.ToString();
             var command = Command_manager.AllCommands.FirstOrDefault(cmd => cmd.CmdCode == code);
-            Window.richTextBox1.Text = command.CmdDescription;
+            Window.richTextBox1.Text = command?.CmdDescription ?? string.Empty;
+            Logger.Debug($"Показано описание команды [{code}]");
         }
 
         private void RichTextBox1_LinkClicked(object sender, LinkClickedEventArgs e)
         {
+            Logger.Info($"Открытие ссылки из описания: [{e.LinkText}]");
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.LinkText)
             {
                 UseShellExecute = true
@@ -93,29 +103,29 @@ namespace PluginsManager
         {
             try
             {
+                Logger.Info("Открытие страницы проекта на GitHub");
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = "https://github.com/i-savelev/PluginsManager",
-                    UseShellExecute = true // ← обязательно!
+                    UseShellExecute = true
                 });
             }
             catch (Exception ex)
             {
+                Logger.Exception(ex, "Не удалось открыть GitHub");
                 TaskDialog.Show("Ошибка", $"Не удалось открыть браузер:\n{ex.Message}");
             }
         }
 
         public void CreateTabs()
         {
-            Logger.Info("CreateTabs", $"Отрисовка вкладок...");
+            Logger.Info("Отрисовка вкладок");
             if (Command_manager.CommandsDictionary != null)
             {
                 foreach (var tab in Command_manager.CommandsDictionary)
                 {
-                    Logger.Info("CreateTabs", $"Вкладка {tab}");
-                    if (string.Equals(UserConfig.post, UserConfigFile.ManagerPost, System.StringComparison.InvariantCultureIgnoreCase))
+                    if (string.Equals(UserConfig.post, UserConfigFile.ManagerPost, StringComparison.InvariantCultureIgnoreCase))
                     {
-                        Logger.Info("CreateTabs", $"Роль пользователя {UserConfig.post}, добавляем вкладки с '#'");
                         if (!UserConfig.exceptionTabs.Contains(tab.Key))
                         {
                             CreateNewTab(tab.Key);
@@ -141,6 +151,7 @@ namespace PluginsManager
             DataGridView dataGridView = CreateDataGrid(tabName);
             tabPage.Controls.Add(dataGridView);
             Window.tabControl.TabPages.Add(tabPage);
+            Logger.Info($"Создана вкладка [{tabName}] с {dataGridView.Rows.Count} командами");
         }
 
         public DataGridView CreateDataGrid(string tabName)
@@ -189,7 +200,6 @@ namespace PluginsManager
             };
 
             dataGridView.RowsDefaultCellStyle = rowStyle;
-
             dataGridView.ReadOnly = true;
             dataGridView.MultiSelect = false;
             dataGridView.RowHeadersDefaultCellStyle = columnHeaderStyle;
@@ -201,13 +211,15 @@ namespace PluginsManager
             CreateColumns(dataGridView);
             foreach (var command in Command_manager.CommandsDictionary[tabName])
             {
-                AddRowToDataGridView(dataGridView, "", command.CmdCode, command.CmdName, command.CmdImage);
+                AddRowToDataGridView(dataGridView, string.Empty, command.CmdCode, command.CmdName, command.CmdImage);
             }
-            dataGridView.CellClick += (s, e) => {
+            dataGridView.CellClick += (s, e) =>
+            {
                 table_CellClickRunCommand(s, e, dataGridView);
                 table_CellClickDescription(s, e, dataGridView);
             };
 
+            Logger.Debug($"DataGrid для вкладки [{tabName}] создан, строк = {dataGridView.Rows.Count}");
             return dataGridView;
         }
 
@@ -232,7 +244,7 @@ namespace PluginsManager
                 HeaderText = "id",
                 Visible = false,
             };
-            DataGridViewTextBoxColumn NameColumn = new DataGridViewTextBoxColumn
+            DataGridViewTextBoxColumn nameColumn = new DataGridViewTextBoxColumn
             {
                 Name = "Имя",
                 HeaderText = "Имя",
@@ -241,7 +253,7 @@ namespace PluginsManager
             };
             dataGridView.Columns.Add(imageColumn);
             dataGridView.Columns.Add(idColumn);
-            dataGridView.Columns.Add(NameColumn);
+            dataGridView.Columns.Add(nameColumn);
             dataGridView.Columns.Add(buttonColumn);
         }
 

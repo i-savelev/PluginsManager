@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows.Forms;
 using System.Xml.Linq;
 using static PluginsManager.Const;
@@ -10,56 +10,50 @@ namespace PluginsManager
         public static string exceptionTabs = string.Empty;
         public static string post = UserConfigFile.DefaultPost;
 
-
-
         public static void Init()
         {
-            Logger.Info("UserConfig", $"Инициализация конфигурации пользователя...");
+            Logger.Info("Инициализация конфигурации пользователя");
 
             if (!Directory.Exists(PathManager.userFolderFile))
             {
                 Directory.CreateDirectory(PathManager.userFolderFile);
-                Logger.Info("UserConfig", $"Папка [{PathManager.userFolderFile}] не существует, создание папки");
+                Logger.Info($"Создана папка конфигурации: [{PathManager.userFolderFile}]");
             }
-            Logger.Info("UserConfig", $"Файл конфигурации пользователя [{PathManager.userConfigFile}]");
-            Logger.Info("UserConfig", $"Папка с копиями файлов [{PathManager.tempDllDir}]");
+            Logger.Info($"Файл конфигурации пользователя: [{PathManager.userConfigFile}]");
+            Logger.Info($"Папка с копиями файлов: [{PathManager.tempDllDir}]");
         }
 
         public static void GetUserSettings()
         {
-            Logger.Info("GetUserSettings", $"Получение настроек пользователя в {PathManager.userConfigFile}...");
+            Logger.Info($"Чтение настроек пользователя из [{PathManager.userConfigFile}]");
             if (!File.Exists(PathManager.userConfigFile))
             {
-                Logger.Info("GetUserSettings", $"Настроек пользователя нет, вызов диалога выбора папки...");
+                Logger.Info("Настроек пользователя нет, вызов диалога выбора папки");
                 SetPathToUserConfigFileDialog();
             }
             else
             {
-                Logger.Info("GetUserSettings", $"Настройки ползователя есть. Сбор информации...");
                 XDocument xmlDoc = XDocument.Load(PathManager.userConfigFile);
                 var sourcePath = xmlDoc.Element(Const.UserConfigFile.XmlSettings)?.Element(Const.UserConfigFile.XmlFolderPath)?.Value ?? string.Empty;
                 PathManager.SetSourcePath(sourcePath);
                 exceptionTabs = xmlDoc.Element(Const.UserConfigFile.XmlSettings)?.Element(Const.UserConfigFile.XmlExceptionTabs)?.Value ?? string.Empty;
                 post = xmlDoc.Element(Const.UserConfigFile.XmlSettings)?.Element(Const.UserConfigFile.XmlPost)?.Value ?? string.Empty;
-                Logger.Info("GetUserSettings", $":исходная папка = [{sourcePath}]");
-                Logger.Info("GetUserSettings", $":исключенные вкладки = [{exceptionTabs}]");
-                Logger.Info("GetUserSettings", $":роль = [{post}]");
+                Logger.Info($"Исходная папка = [{sourcePath}]");
+                Logger.Info($"Исключенные вкладки = [{exceptionTabs}]");
+                Logger.Info($"Роль = [{post}]");
             }
         }
+
         public static bool SetPathToUserConfigFileDialog()
         {
-            Logger.Info("SetPathToUserConfigFileDialog", $"Диалог выбора папки...");
+            Logger.Info("Открытие диалога выбора папки с DLL");
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
-                Logger.Info("SetPathToUserConfigFileDialog", $"Проверка существования настроек пользователя...");
                 if (File.Exists(PathManager.userConfigFile))
                 {
-                    Logger.Info("SetPathToUserConfigFileDialog", $"Уже существует файл настроек пользователя: {PathManager.userConfigFile}");
                     XDocument xmlDoc = XDocument.Load(PathManager.userConfigFile);
                     exceptionTabs = xmlDoc.Element(Const.UserConfigFile.XmlSettings)?.Element(Const.UserConfigFile.XmlExceptionTabs)?.Value ?? string.Empty;
                     post = xmlDoc.Element(Const.UserConfigFile.XmlSettings)?.Element(Const.UserConfigFile.XmlPost)?.Value ?? string.Empty;
-                    Logger.Info("SetPathToUserConfigFileDialog", $":исключенные вкладки = [{exceptionTabs}]");
-                    Logger.Info("SetPathToUserConfigFileDialog", $":роль = [{post}]");
                 }
 
                 openFileDialog.Title = "Выберете папку с файлами .dll";
@@ -70,29 +64,24 @@ namespace PluginsManager
                 openFileDialog.Filter = "Все папки|*.*";
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
-                    Logger.Info("SetPathToUserConfigFileDialog", $"Папка выбрана...");
                     string folderPath = Path.GetDirectoryName(openFileDialog.FileName);
-                    Logger.Info("SetPathToUserConfigFileDialog", $"Выбранный путь {folderPath}");
+                    Logger.Info($"Выбранный путь: [{folderPath}]");
                     PathManager.SetSourcePath(folderPath);
-                    Logger.Info("SetPathToUserConfigFileDialog", $"Обновление настроек ползователя...");
                     XElement settings = new XElement(Const.UserConfigFile.XmlSettings,
                         new XElement(Const.UserConfigFile.XmlFolderPath, PathManager.sourceDir),
                         new XElement(Const.UserConfigFile.XmlExceptionTabs, exceptionTabs),
                         new XElement(Const.UserConfigFile.XmlPost, post)
                     );
-                    Logger.Info("SetPathToUserConfigFileDialog", $":исходная папка = [{PathManager.sourceDir}]");
-                    Logger.Info("SetPathToUserConfigFileDialog", $":исключенные вкладки = [{exceptionTabs}]");
-                    Logger.Info("SetPathToUserConfigFileDialog", $":роль = [{post}]");
                     settings.Save(PathManager.userConfigFile);
-                    Logger.Info("SetPathToUserConfigFileDialog", $":Сохранение конигурации пользователя [{PathManager.userConfigFile}]");
+                    Logger.Info($"Конфигурация пользователя сохранена: [{PathManager.userConfigFile}]");
                     CommandConfig.CreateConfigFile();
                     TempFiles.CopyToTemp(PathManager.sourceDir);
                     Dllmanager.CopyDll();
                     return true;
-
                 }
                 else
                 {
+                    Logger.Warning("Пользователь отменил выбор папки");
                     return false;
                 }
             }

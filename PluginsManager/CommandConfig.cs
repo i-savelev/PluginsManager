@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml.Linq;
@@ -10,15 +10,14 @@ namespace PluginsManager
     {
         public static Dictionary<string, Dictionary<string, string>> CommamdConfigDictionary { get; set; }
 
-
         private static void GetConfigFilePath()
         {
-            Logger.Info("GetConfigFilePath", $"Получение пути к конфигурации команд...");
+            Logger.Info("Получение пути к конфигурации команд");
             if (!string.IsNullOrEmpty(PathManager.sourceDir))
             {
                 string pluginConfigPathImg = Path.Combine(PathManager.sourceDir, CmdConfigFile.ImageFolderName);
-                Logger.Info("GetConfigFilePath", $"Путь к папке изображений {pluginConfigPathImg}");
-                Logger.Info("GetConfigFilePath", $"Путь к папке конфигурации {PathManager.sourceDir}");
+                Logger.Info($"Путь к папке изображений: [{pluginConfigPathImg}]");
+                Logger.Info($"Путь к папке конфигурации: [{PathManager.sourceDir}]");
                 if (!Directory.Exists(PathManager.sourceDir))
                 {
                     Directory.CreateDirectory(PathManager.sourceDir);
@@ -27,13 +26,13 @@ namespace PluginsManager
                 {
                     Directory.CreateDirectory(pluginConfigPathImg);
                 }
-                Logger.Info("GetConfigFilePath", $"Конфигурация: {PathManager.sourceComandConfigFile}");
+                Logger.Info($"Файл конфигурации команд: [{PathManager.sourceComandConfigFile}]");
             }
         }
 
         public static void GetDllSettings()
         {
-            Logger.Info("GetDllSettings", $"Получение конфигурации команд...");
+            Logger.Info($"Чтение конфигурации команд из [{PathManager.tempComandConfigFile}]");
             if (CommamdConfigDictionary != null)
             {
                 CommamdConfigDictionary.Clear();
@@ -45,6 +44,7 @@ namespace PluginsManager
             {
                 XDocument xDoc = XDocument.Load(PathManager.tempComandConfigFile);
                 var commands = xDoc.Descendants(CmdConfigFile.XmlCommand);
+                int count = 0;
                 foreach (var command in commands)
                 {
                     string cmdCode = command.Element(CmdConfigFile.XmlCode[0])?.Value;
@@ -55,30 +55,31 @@ namespace PluginsManager
                     if (!commandConfigDictionary.ContainsKey(cmdCode))
                     {
                         commandConfigDictionary[cmdCode] = new Dictionary<string, string>()
-                            {
-                                {CmdConfigFile.XmlTab[0], cmdTab },
-                                {CmdConfigFile.XmlName[0], cmdName },
-                                {CmdConfigFile.XmlDescription[0], cmdDescription },
-                                {CmdConfigFile.XmlImage[0], cmdImage },
-                            };
+                        {
+                            {CmdConfigFile.XmlTab[0], cmdTab },
+                            {CmdConfigFile.XmlName[0], cmdName },
+                            {CmdConfigFile.XmlDescription[0], cmdDescription },
+                            {CmdConfigFile.XmlImage[0], cmdImage },
+                        };
+                        count += 1;
                     }
                 }
+                Logger.Info($"Конфигурация команд загружена: {count} записей");
             }
             catch (Exception ex)
             {
-                Logger.Error("GetDllSettings", $"Ошибка при формирвоании словаря {ex.Message}");
+                Logger.Exception(ex, "Ошибка при формировании словаря команд");
             }
             CommamdConfigDictionary = commandConfigDictionary;
-            Logger.Info("GetDllSettings", $"Словарь команд из конфигурации получен");
         }
 
         public static void CreateConfigFile()
         {
             GetConfigFilePath();
-            Logger.Info("CreateConfigFile", $"Создание конфигурации команд...");
+            Logger.Info("Проверка конфигурации команд");
             if (!File.Exists(PathManager.sourceComandConfigFile))
             {
-                Logger.Info("CreateConfigFile", $"Файла конфигурации нет, создание пустого файла...");
+                Logger.Info("Файл конфигурации не найден, создается шаблон");
                 XElement root = new XElement(CmdConfigFile.XmlRoot);
                 XElement cmdCommand = new XElement(CmdConfigFile.XmlCommand,
                     new XElement(CmdConfigFile.XmlCode[0], CmdConfigFile.XmlCode[1]),
@@ -90,8 +91,12 @@ namespace PluginsManager
                 root.Add(cmdCommand);
                 XDocument xmlDoc = new XDocument(new XDeclaration("1.0", "UTF-8", null), root);
                 xmlDoc.Save(PathManager.sourceComandConfigFile);
+                Logger.Info($"Шаблон конфигурации создан: [{PathManager.sourceComandConfigFile}]");
             }
-            Logger.Info("CreateConfigFile", $"Файл конфигурации есть...");
+            else
+            {
+                Logger.Info("Файл конфигурации команд уже существует");
+            }
         }
     }
 }

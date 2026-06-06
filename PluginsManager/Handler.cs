@@ -1,5 +1,6 @@
-﻿using Autodesk.Revit.UI;
+using Autodesk.Revit.UI;
 using System;
+using System.Diagnostics;
 
 namespace PluginsManager
 {
@@ -13,19 +14,27 @@ namespace PluginsManager
         }
         public void Execute(UIApplication app)
         {
+            var commandName = GlobComandName.Name;
+            var stopwatch = Stopwatch.StartNew();
+            Logger.Info($"Начало выполнения команды [{commandName}]");
+
             try
             {
-                _command_manager.RunCommand(GlobComandName.Name);
-                
+                _command_manager.RunCommand(commandName);
+                stopwatch.Stop();
+                Logger.Info($"Команда [{commandName}] завершена за {stopwatch.ElapsedMilliseconds} ms");
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
+                Logger.Exception(ex, $"Ошибка выполнения команды [{commandName}] через {stopwatch.ElapsedMilliseconds} ms");
                 TaskDialog td = new TaskDialog("Ошибка");
                 td.MainContent = $"{ex.Message}\n\n[Подробности]\n{ex.GetBaseException()}";
                 td.Show();
             }
             finally
             {
+                Logger.Debug("Освобождение ExternalEvent");
                 _command_manager.ExternalEvent?.Dispose();
                 _command_manager.ExternalEvent = null;
             }

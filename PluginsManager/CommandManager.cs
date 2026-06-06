@@ -1,8 +1,8 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
-using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -21,53 +21,52 @@ namespace PluginsManager
         public string FolderPath { get; set; }
         public ExternalEvent ExternalEvent { get; set; }
 
-
         public CommandManager(UIApplication uiApp, string folderPath)
         {
             UiApp = uiApp;
             FolderPath = folderPath;
+            Logger.Info($"Создание менеджера команд для папки [{FolderPath}]");
             GetExternalCommandsFromAssembly();
             Handler eventHandler = new Handler(this);
-            ExternalEvent externalEvent = ExternalEvent.Create(eventHandler);
-            ExternalEvent = externalEvent;
-
+            ExternalEvent = ExternalEvent.Create(eventHandler);
+            Logger.Info("ExternalEvent создан");
         }
 
         public void Refresh(string folderPath)
         {
-            Logger.Info("Refresh", "Обновление");
+            Logger.Info($"Обновление менеджера команд | previousCommands = {AllCommands.Count}, previousTabs = {CommandsDictionary.Count}, newFolder = [{folderPath}]");
             AllCommands.Clear();
             AllTypes.Clear();
             CommandsDictionary.Clear();
             FolderPath = folderPath;
             GetExternalCommandsFromAssembly();
             Handler eventHandler = new Handler(this);
-            ExternalEvent externalEvent = ExternalEvent.Create(eventHandler);
-            ExternalEvent = externalEvent;
+            ExternalEvent = ExternalEvent.Create(eventHandler);
+            Logger.Info("ExternalEvent создан");
         }
 
         public void RunCommand(string commandName)
         {
-            Logger.Info("RunCommand", $"Запуск команды [{commandName}]");
+            var stopwatch = Stopwatch.StartNew();
+            Logger.Info($"Запуск команды [{commandName}]");
             var commandType = AllTypes.FirstOrDefault(x => x.FullName == commandName);
             IExternalCommand commandInstance = (IExternalCommand)Activator.CreateInstance(commandType);
             ExternalCommandData commandData = Create(UiApp);
             string message = string.Empty;
             ElementSet elements = null;
             Result result = commandInstance.Execute(commandData, ref message, elements);
+            stopwatch.Stop();
+            Logger.Info($"Результат команды [{commandName}] = {result} | message = [{message}] | elapsed = {stopwatch.ElapsedMilliseconds} ms");
             if (result != Result.Succeeded)
             {
                 TaskDialog.Show("Ошибка", message);
-                Logger.Error("RunCommand", $"Ошибка запуска команды [{commandName}, {message}]");
+                Logger.Error($"Ошибка запуска команды [{commandName}, {message}]");
             }
         }
 
         public ExternalCommandData Create(UIApplication uiApplication)
         {
-            // Находим тип ExternalCommandData
             Type externalCommandDataType = typeof(ExternalCommandData);
-
-            // Находим внутренний конструктор
             ConstructorInfo constructor = externalCommandDataType
                 .GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)
                 .FirstOrDefault();
@@ -77,10 +76,7 @@ namespace PluginsManager
                 throw new InvalidOperationException("Не удалось найти конструктор ExternalCommandData.");
             }
 
-            // Создаем экземпляр через рефлексию
             ExternalCommandData data = (ExternalCommandData)constructor.Invoke(null);
-
-            // Устанавливаем свойство Application через рефлексию
             PropertyInfo applicationProperty = externalCommandDataType.GetProperty(
                 Const.PropertyNames.Application,
                 BindingFlags.Public | BindingFlags.Instance
@@ -95,115 +91,131 @@ namespace PluginsManager
                 throw new InvalidOperationException("Не удалось установить свойство Application.");
             }
 
+            Logger.Debug("ExternalCommandData успешно создан через reflection");
             return data;
         }
 
         private void GetExternalCommandsFromAssembly()
         {
-            var i = 0;
+            var stopwatch = Stopwatch.StartNew();
+            int processedDlls = 0;
+            int commandsAdded = 0;
             Logger.Separator();
-            Logger.Info("GetExternalCommandsFromAssembly", $"Получение сборок из dll...");
+            Logger.Info("Получение команд из DLL");
             try
             {
-                foreach (var dllFile in Dllmanager.DllList())
+                var dllFiles = Dllmanager.DllList().ToList();
+                Logger.Info($"DLL для анализа: {dllFiles.Count}");
+
+                foreach (var dllFile in dllFiles)
                 {
-                    i += 1;
+                    processedDlls += 1;
                     try
                     {
-                        Logger.Info("GetExternalCommandsFromAssembly", $"[{i}]: {dllFile}");
-                        Logger.Info("GetExternalCommandsFromAssembly", $"Поптыка загрузить сборку из текущего AppDomain...");
+                        Logger.Info($"[{processedDlls}/{dllFiles.Count}] Анализ DLL [{dllFile}]");
                         var assembly = FindLoadedAssemblyByLocation(dllFile);
                         if (assembly == null)
                         {
-                            Logger.Info("GetExternalCommandsFromAssembly", $"В текущем AppDomain сборка не найдена, загрузка из файла...");
-                            
+                            Logger.Info("Сборка не найдена в AppDomain, загрузка из файла");
+
                             if (File.Exists(dllFile + ":Zone.Identifier"))
                             {
                                 File.Delete(dllFile + ":Zone.Identifier");
+                                Logger.Debug($"Удален Zone.Identifier для [{dllFile}]");
                             }
                             assembly = Assembly.LoadFile(dllFile);
                         }
                         if (assembly == null || !IsAPIReferenced(assembly))
                         {
-                            Logger.Info("GetExternalCommandsFromAssembly", $"не IsAPIReferenced");
+                            Logger.Info($"Сборка [{assembly?.FullName ?? dllFile}] пропущена: нет ссылки на RevitAPI");
                             continue;
                         }
 
-                        IEnumerable<Type> externalCommands = assembly.GetTypes()
-                            .Where(type => typeof(IExternalCommand).IsAssignableFrom(type) && !type.IsAbstract);
+                        var externalCommands = assembly.GetTypes()
+                            .Where(type => typeof(IExternalCommand).IsAssignableFrom(type) && !type.IsAbstract)
+                            .ToList();
 
+                        Logger.Info($"В сборке [{assembly.GetName().Name}] найдено external-команд: {externalCommands.Count}");
                         AllTypes.AddRange(externalCommands);
 
                         foreach (var type in externalCommands)
                         {
-                            FillCommandsDictionaryAndList(type, assembly, dllFile);
+                            if (FillCommandsDictionaryAndList(type, assembly, dllFile))
+                            {
+                                commandsAdded += 1;
+                            }
                         }
+                    }
+                    catch (ReflectionTypeLoadException ex)
+                    {
+                        var loaderErrors = ex.LoaderExceptions == null
+                            ? string.Empty
+                            : string.Join(" || ", ex.LoaderExceptions.Where(x => x != null).Select(x => x.Message));
+                        Logger.Exception(ex, $"Ошибка загрузки типов из [{dllFile}] | LoaderExceptions = {loaderErrors}");
                     }
                     catch (Exception ex)
                     {
-                        Logger.Error("GetExternalCommandsFromAssembly", $"dll = [{dllFile}] - {ex.Message}");
+                        Logger.Exception(ex, $"Ошибка анализа DLL [{dllFile}]");
                     }
                 }
                 Logger.Separator();
                 SortCommandsDictionary();
+                stopwatch.Stop();
+                Logger.Info($"Анализ DLL завершен за {stopwatch.ElapsedMilliseconds} ms | processedDlls = {processedDlls}, discoveredTypes = {AllTypes.Count}, addedCommands = {commandsAdded}, tabs = {CommandsDictionary.Count}");
             }
             catch (Exception ex)
             {
                 TaskDialog.Show("Ошибка загрузки", ex.Message);
-                Logger.Warning("GetExternalCommandsFromAssembly", $"{ex.Message}");
+                Logger.Exception(ex, "Критическая ошибка загрузки DLL");
             }
         }
 
         private Assembly FindLoadedAssemblyByLocation(string dllPath)
         {
-            string fullPath = Path.GetFullPath(dllPath); // нормализуем путь
+            string fullPath = Path.GetFullPath(dllPath);
 
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 try
                 {
-                    // Location может быть пустым (например, для динамических сборок)
                     if (!string.IsNullOrEmpty(assembly.Location))
                     {
                         string loadedPath = Path.GetFullPath(assembly.Location);
                         if (string.Equals(fullPath, loadedPath, StringComparison.OrdinalIgnoreCase))
                         {
-                            Logger.Info("FindLoadedAssemblyByLocation", $"Сборка найдена в текущем AppDomain");
-                            Logger.Info("FindLoadedAssemblyByLocation", $"{assembly.FullName}");
+                            Logger.Debug($"Сборка найдена в текущем AppDomain: [{assembly.FullName}]");
                             return assembly;
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    // Некоторые сборки могут выбросить исключение при доступе к Location
-                    Logger.Warning("FindLoadedAssemblyByLocation", $"Ошибка при чтении Location для сборки: {ex.Message}");
+                    Logger.Exception(ex, "Ошибка при чтении Location для загруженной сборки", Logger.LogLevel.Warning);
                 }
             }
 
             return null;
         }
 
-        private void FillCommandsDictionaryAndList(Type type, Assembly assembly, string dllFilePath)
+        private bool FillCommandsDictionaryAndList(Type type, Assembly assembly, string dllFilePath)
         {
-            Logger.Info("FillCommandsDictionaryAndList", $"Добавление команды {type.FullName} в словарь...");
+            Logger.Info($"Регистрация команды [{type.FullName}]");
             var commandName = string.Empty;
             var tabName = string.Empty;
             var commandDescription = string.Empty;
             var commandImage = string.Empty;
+            var metadataSource = "dll metadata";
 
             if (CommandConfig.CommamdConfigDictionary.ContainsKey(type.FullName))
             {
-                Logger.Info("FillCommandsDictionaryAndList", $"[{type.FullName}] есть в конфигарции команд");
+                metadataSource = "commands_config.xml";
                 commandName = CommandConfig.CommamdConfigDictionary[type.FullName][CmdConfigFile.XmlName[0]];
                 tabName = CommandConfig.CommamdConfigDictionary[type.FullName][CmdConfigFile.XmlTab[0]];
                 commandDescription = CommandConfig.CommamdConfigDictionary[type.FullName][CmdConfigFile.XmlDescription[0]];
                 commandImage = CommandConfig.CommamdConfigDictionary[type.FullName][CmdConfigFile.XmlImage[0]];
-                Logger.Info("FillCommandsDictionaryAndList", $"Название = {commandName} Вкладка={tabName}");
             }
             else
             {
-                Logger.Info("FillCommandsDictionaryAndList", $"[{type.FullName}] нет в конфигарции команд");
                 commandName = type.GetProperty(Const.DllFields.Name, BindingFlags.Public | BindingFlags.Static)
                     ?.GetValue(null)
                     ?.ToString();
@@ -216,8 +228,9 @@ namespace PluginsManager
                 commandImage = type.GetProperty(Const.DllFields.Image, BindingFlags.Public | BindingFlags.Static)
                     ?.GetValue(null)
                     ?.ToString();
-                Logger.Info("FillCommandsDictionaryAndList", $"Название = {commandName} Вкладка={tabName}");
             }
+            Logger.Info($"Metadata source = {metadataSource} | name = [{commandName}] | tab = [{tabName}] | image = [{commandImage}]");
+
             if (!string.IsNullOrEmpty(tabName))
             {
                 Image image = Properties.Resources.imgPlaceholder;
@@ -235,8 +248,12 @@ namespace PluginsManager
                             {
                                 image = Image.FromStream(ms);
                             }
+                            Logger.Debug($"Изображение загружено из файла [{path}]");
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            Logger.Exception(ex, $"Не удалось загрузить изображение [{path}]", Logger.LogLevel.Warning);
+                        }
                     }
                 }
                 else
@@ -248,6 +265,7 @@ namespace PluginsManager
                             if (stream != null)
                             {
                                 image = Image.FromStream(stream);
+                                Logger.Debug($"Изображение загружено из ресурсов сборки [{commandImage}]");
                             }
                         }
                     }
@@ -262,6 +280,7 @@ namespace PluginsManager
                         if (!CommandsDictionary.ContainsKey(tab))
                         {
                             CommandsDictionary.Add(tab, new List<Command> { command });
+                            Logger.Info($"Создана новая вкладка [{tab}]");
                         }
                         else
                         {
@@ -274,17 +293,25 @@ namespace PluginsManager
                     if (!CommandsDictionary.ContainsKey(tabName))
                     {
                         CommandsDictionary.Add(tabName, new List<Command> { command });
+                        Logger.Info($"Создана новая вкладка [{tabName}]");
                     }
                     else
                     {
                         CommandsDictionary[tabName].Add(command);
                     }
                 }
+
+                Logger.Info($"Команда [{type.FullName}] добавлена во вкладки");
+                return true;
             }
+
+            Logger.Warning($"Команда [{type.FullName}] пропущена: вкладка не задана");
+            return false;
         }
+
         private void SortCommandsDictionary()
         {
-            Logger.Info("SortCommandsDictionary", $"Сортировка команд");
+            Logger.Info("Сортировка словаря команд");
             if (CommandsDictionary != null)
             {
                 CommandsDictionary = CommandsDictionary
@@ -294,6 +321,7 @@ namespace PluginsManager
                 foreach (var key in CommandsDictionary.Keys.ToList())
                 {
                     CommandsDictionary[key] = CommandsDictionary[key].OrderBy(val => val.CmdName).ToList();
+                    Logger.Debug($"Вкладка [{key}] после сортировки содержит {CommandsDictionary[key].Count} команд");
                 }
             }
         }
@@ -305,7 +333,7 @@ namespace PluginsManager
             {
                 if (string.Equals(refName.Name, "RevitAPI", StringComparison.OrdinalIgnoreCase))
                 {
-                    Logger.Info("IsAPIReferenced", $"{assembly.FullName} содержит RevitAPI");
+                    Logger.Debug($"Сборка [{assembly.FullName}] содержит ссылку на RevitAPI");
                     return true;
                 }
 

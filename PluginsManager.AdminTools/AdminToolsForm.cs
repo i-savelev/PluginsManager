@@ -1,0 +1,619 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Windows.Forms;
+using System.Xml.Linq;
+
+namespace PluginsManager.AdminTools
+{
+    public class AdminToolsForm : Form
+    {
+        private DataGridView _dataGridView;
+        private Button _btnSave;
+        private Button _btnCancel;
+        private Label _statusLabel;
+        private List<Command> _commands;
+        private CommandManager _commandManager;
+
+        /// <summary>
+        /// Хранит исходные (дефолтные) значения команды, полученные из DLL.
+        /// Используется для определения изменённых полей и сброса к дефолтам.
+        /// </summary>
+        private class CommandDefaults
+        {
+            public string Tab { get; set; }
+            public string Name { get; set; }
+            public string Description { get; set; }
+            public Image OriginalImage { get; set; }
+        }
+
+        /// <summary>
+        /// Словарь дефолтных значений по CmdCode.
+        /// </summary>
+        private Dictionary<string, CommandDefaults> _originalValues = new Dictionary<string, CommandDefaults>();
+
+        public AdminToolsForm(CommandManager commandManager)
+        {
+            _commandManager = commandManager ?? throw new ArgumentNullException(nameof(commandManager));
+            _commands = commandManager.AllCommands ?? throw new ArgumentNullException(nameof(commandManager.AllCommands));
+            SetupForm();
+            SetupControls();
+            LoadDataToGrid();
+        }
+
+        private void SetupForm()
+        {
+            Text = "PluginsManager - Конфигурация команд";
+            Size = new Size(1050, 700);
+            StartPosition = FormStartPosition.CenterScreen;
+            ShowIcon = false;
+            MinimumSize = new Size(850, 500);
+            FormBorderStyle = FormBorderStyle.Sizable;
+        }
+
+        private void SetupControls()
+        {
+            _dataGridView = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = true,
+                ReadOnly = false,
+                SelectionMode = DataGridViewSelectionMode.CellSelect,
+                MultiSelect = false,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders
+            };
+
+            SetupDataGridViewColumns();
+
+            _dataGridView.CellMouseEnter += (s, e) =>
+            {
+                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+                {
+                    var col = _dataGridView.Columns[e.ColumnIndex];
+                    _dataGridView.Cursor = (col.Name == "Preview" || col.Name == "Reset") ? Cursors.Hand : Cursors.Default;
+                }
+            };
+            _dataGridView.CellMouseLeave += (s, e) => _dataGridView.Cursor = Cursors.Default;
+
+            var buttonPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 50,
+                FlowDirection = FlowDirection.RightToLeft,
+                Padding = new Padding(10),
+                BackColor = Color.FromArgb(240, 240, 240)
+            };
+
+            _btnCancel = new Button { Text = "✖ Отмена", Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
+            _btnCancel.Click += BtnCancel_Click;
+
+            _btnSave = new Button { Text = "💾 Сохранить", Width = 120, Height = 30 };
+            _btnSave.Click += BtnSave_Click;
+
+            buttonPanel.Controls.Add(_btnCancel);
+            buttonPanel.Controls.Add(_btnSave);
+
+            _statusLabel = new Label
+            {
+                Dock = DockStyle.Bottom,
+                Height = 25,
+                Padding = new Padding(5, 3, 0, 0),
+                BackColor = Color.LightYellow,
+                ForeColor = Color.DarkBlue,
+                Text = "Готов",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            Controls.Add(_dataGridView);
+            Controls.Add(_statusLabel);
+            Controls.Add(buttonPanel);
+
+            CancelButton = _btnCancel;
+            AcceptButton = _btnSave;
+        }
+
+        private void SetupDataGridViewColumns()
+        {
+            var colFullName = new DataGridViewTextBoxColumn { Name = "FullName", Visible = false, ReadOnly = true };
+
+            var colAssembly = new DataGridViewTextBoxColumn
+            {
+                Name = "Assembly",
+                HeaderText = "Сборка",
+                FillWeight = 12,
+                ReadOnly = true,
+                DefaultCellStyle = new DataGridViewCellStyle { WrapMode = DataGridViewTriState.True }
+            };
+
+            var colClass = new DataGridViewTextBoxColumn
+            {
+                Name = "Class",
+                HeaderText = "Класс",
+                FillWeight = 15,
+                ReadOnly = true,
+                DefaultCellStyle = new DataGridViewCellStyle { WrapMode = DataGridViewTriState.True }
+            };
+
+            var colTab = new DataGridViewTextBoxColumn
+            {
+                Name = "Tab",
+                HeaderText = "Вкладка",
+                FillWeight = 12,
+                DefaultCellStyle = new DataGridViewCellStyle { WrapMode = DataGridViewTriState.True }
+            };
+
+            var colName = new DataGridViewTextBoxColumn
+            {
+                Name = "Name",
+                HeaderText = "Имя команды",
+                FillWeight = 15,
+                DefaultCellStyle = new DataGridViewCellStyle { WrapMode = DataGridViewTriState.True }
+            };
+
+            var colDescription = new DataGridViewTextBoxColumn
+            {
+                Name = "Description",
+                HeaderText = "Описание",
+                FillWeight = 22,
+                DefaultCellStyle = new DataGridViewCellStyle { WrapMode = DataGridViewTriState.True }
+            };
+
+            var colImageFileName = new DataGridViewTextBoxColumn { Name = "ImageFileName", Visible = false, ReadOnly = true };
+
+            var colPreview = new DataGridViewImageColumn
+            {
+                Name = "Preview",
+                HeaderText = "Изображение",
+                FillWeight = 8,
+                ImageLayout = DataGridViewImageCellLayout.Normal,
+                Width = 60,
+                MinimumWidth = 60,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
+            };
+
+            // Кнопка сброса к дефолтным настройкам
+            var colReset = new DataGridViewButtonColumn
+            {
+                Name = "Reset",
+                HeaderText = "Сброс",
+                Text = "↺ Дефолт",
+                UseColumnTextForButtonValue = true,
+                FillWeight = 8,
+                Width = 80,
+                MinimumWidth = 80,
+                FlatStyle = FlatStyle.Flat,
+                ReadOnly = false
+            };
+
+            _dataGridView.Columns.Add(colFullName);
+            _dataGridView.Columns.Add(colAssembly);
+            _dataGridView.Columns.Add(colClass);
+            _dataGridView.Columns.Add(colTab);
+            _dataGridView.Columns.Add(colName);
+            _dataGridView.Columns.Add(colDescription);
+            _dataGridView.Columns.Add(colImageFileName);
+            _dataGridView.Columns.Add(colPreview);
+            _dataGridView.Columns.Add(colReset);
+
+            _dataGridView.CellClick += DataGridView_CellClick;
+            _dataGridView.CellBeginEdit += DataGridView_CellBeginEdit;
+        }
+
+        private Image ResizeImage(Image source, int targetSize)
+        {
+            if (source == null) return null;
+            try
+            {
+                var resized = new Bitmap(targetSize, targetSize);
+                using (var g = Graphics.FromImage(resized))
+                {
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                    g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                    g.DrawImage(source, 0, 0, targetSize, targetSize);
+                }
+                return resized;
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "[AdminToolsForm] Ошибка масштабирования изображения");
+                return source;
+            }
+        }
+
+        /// <summary>
+        /// Извлекает исходные (дефолтные) значения команды из DLL.
+        /// Эти значения не учитывают пользовательский XML-конфиг.
+        /// </summary>
+        private CommandDefaults GetDllDefaults(Command cmd)
+        {
+            var tab = string.Empty;
+
+            // Вкладка — из CommandManager (он уже распарсил IS_TAB_NAME из DLL)
+            var kvp = _commandManager.CommandsDictionary.FirstOrDefault(x => x.Value.Any(c => c.CmdCode == cmd.CmdCode));
+            if (!string.IsNullOrEmpty(kvp.Key))
+            {
+                tab = kvp.Key;
+            }
+
+            return new CommandDefaults
+            {
+                Tab = tab,
+                Name = cmd.CmdName ?? string.Empty,
+                Description = cmd.CmdDescription ?? string.Empty,
+                OriginalImage = cmd.CmdImage
+            };
+        }
+
+        private void LoadDataToGrid()
+        {
+            Logger.Info($"[AdminToolsForm] Загрузка данных в таблицу | Команд: {_commands.Count}");
+            _statusLabel.Text = "Загрузка данных...";
+            _dataGridView.Rows.Clear();
+            _originalValues.Clear();
+
+            foreach (var cmd in _commands)
+            {
+                // Дефолтные значения из DLL (для сравнения и сброса)
+                var defaults = GetDllDefaults(cmd);
+                _originalValues[cmd.CmdCode] = defaults;
+
+                // Текущие значения для отображения (сначала дефолты, потом XML-переопределения)
+                var currentTab = defaults.Tab;
+                var currentName = defaults.Name;
+                var currentDescription = defaults.Description;
+                var currentImageFileName = string.Empty;
+                var currentImage = defaults.OriginalImage;
+
+                // Приоритет: если есть запись в XML — переопределяем
+                if (CommandConfig.CommamdConfigDictionary != null && CommandConfig.CommamdConfigDictionary.ContainsKey(cmd.CmdCode))
+                {
+                    var config = CommandConfig.CommamdConfigDictionary[cmd.CmdCode];
+
+                    var xmlTab = config.ContainsKey("CmdTab") ? config["CmdTab"] : string.Empty;
+                    if (!string.IsNullOrEmpty(xmlTab)) currentTab = xmlTab;
+
+                    var xmlName = config.ContainsKey("CmdName") ? config["CmdName"] : string.Empty;
+                    if (!string.IsNullOrEmpty(xmlName)) currentName = xmlName;
+
+                    var xmlDescription = config.ContainsKey("CmdDescription") ? config["CmdDescription"] : string.Empty;
+                    if (!string.IsNullOrEmpty(xmlDescription)) currentDescription = xmlDescription;
+
+                    var xmlImage = config.ContainsKey("CmdImage") ? config["CmdImage"] : string.Empty;
+                    if (!string.IsNullOrEmpty(xmlImage))
+                    {
+                        currentImageFileName = xmlImage;
+                        // Пытаемся загрузить картинку из папки img
+                        var imgPath = Path.Combine(PathManager.sourceDir, Const.CmdConfigFile.ImageFolderName, xmlImage);
+                        if (File.Exists(imgPath))
+                        {
+                            try
+                            {
+                                using (var stream = new MemoryStream(File.ReadAllBytes(imgPath)))
+                                {
+                                    currentImage = Image.FromStream(stream);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Warning($"[AdminToolsForm] Не удалось загрузить изображение из XML: {imgPath} | {ex.Message}");
+                            }
+                        }
+                    }
+                }
+
+                var assemblyName = string.Empty;
+                var className = string.Empty;
+                ParseFullName(cmd.CmdCode, out assemblyName, out className);
+
+                var imageToDisplay = currentImage != null ? ResizeImage(currentImage, 50) : null;
+
+                _dataGridView.Rows.Add(
+                    cmd.CmdCode,
+                    assemblyName,
+                    className,
+                    currentTab,
+                    currentName,
+                    currentDescription,
+                    currentImageFileName,
+                    imageToDisplay,
+                    "↺ Дефолт"
+                );
+            }
+
+            _statusLabel.Text = $"Загружено: {_commands.Count} команд";
+            Logger.Info("[AdminToolsForm] Данные загружены в таблицу");
+        }
+
+        private void ParseFullName(string fullName, out string assemblyName, out string className)
+        {
+            assemblyName = string.Empty;
+            className = fullName ?? string.Empty;
+            if (string.IsNullOrEmpty(fullName)) return;
+
+            var dotIndex = fullName.IndexOf('.');
+            if (dotIndex > 0)
+            {
+                assemblyName = fullName.Substring(0, dotIndex);
+                className = fullName.Substring(dotIndex + 1);
+            }
+            else
+            {
+                assemblyName = fullName;
+                className = string.Empty;
+            }
+        }
+
+        private void DataGridView_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            var columnName = _dataGridView.Columns[e.ColumnIndex].Name;
+
+            if (columnName == "Preview")
+            {
+                SelectImageForRow(e.RowIndex);
+            }
+            else if (columnName == "Reset")
+            {
+                ResetRowToDefaults(e.RowIndex);
+            }
+        }
+
+        /// <summary>
+        /// Сбрасывает значения строки к дефолтным (из DLL).
+        /// Очищает имя выбранного изображения — это уберёт команду из XML при сохранении.
+        /// </summary>
+        private void ResetRowToDefaults(int rowIndex)
+        {
+            var fullName = _dataGridView.Rows[rowIndex].Cells["FullName"].Value?.ToString();
+            if (string.IsNullOrEmpty(fullName) || !_originalValues.ContainsKey(fullName))
+            {
+                Logger.Warning($"[AdminToolsForm] Не удалось найти дефолты для {fullName}");
+                return;
+            }
+
+            var defaults = _originalValues[fullName];
+            _dataGridView.Rows[rowIndex].Cells["Tab"].Value = defaults.Tab;
+            _dataGridView.Rows[rowIndex].Cells["Name"].Value = defaults.Name;
+            _dataGridView.Rows[rowIndex].Cells["Description"].Value = defaults.Description;
+            _dataGridView.Rows[rowIndex].Cells["ImageFileName"].Value = string.Empty; // очистка — тег CmdImage не будет записан
+
+            var resizedImg = defaults.OriginalImage != null ? ResizeImage(defaults.OriginalImage, 50) : null;
+            _dataGridView.Rows[rowIndex].Cells["Preview"].Value = resizedImg;
+
+            Logger.Info($"[AdminToolsForm] Строка сброшена к дефолтам: {fullName}");
+            _statusLabel.Text = $"Сброшено к дефолтам: {_dataGridView.Rows[rowIndex].Cells["Name"].Value}";
+        }
+
+        private void DataGridView_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
+        {
+            var columnName = _dataGridView.Columns[e.ColumnIndex].Name;
+
+            if (columnName == "FullName" || columnName == "Assembly" || columnName == "Class" ||
+                columnName == "ImageFileName" || columnName == "Reset")
+                return;
+
+            if (columnName == "Description" || columnName == "Tab" || columnName == "Name")
+            {
+                var currentValue = _dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? string.Empty;
+
+                using (var editForm = new MultilineEditForm(currentValue, columnName))
+                {
+                    if (editForm.ShowDialog() == DialogResult.OK)
+                    {
+                        _dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value = editForm.EditedText;
+                    }
+                }
+                e.Cancel = true;
+            }
+        }
+
+        private void SelectImageForRow(int rowIndex)
+        {
+            using (var dialog = new OpenFileDialog())
+            {
+                dialog.Title = "Выберите изображение для команды";
+                dialog.Filter = "Изображения|*.png;*.jpg;*.jpeg;*.ico|Все файлы|*.*";
+                dialog.CheckFileExists = true;
+
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    var sourcePath = dialog.FileName;
+                    var fileName = Path.GetFileName(sourcePath);
+
+                    var imgDir = Path.Combine(PathManager.sourceDir, Const.CmdConfigFile.ImageFolderName);
+                    if (!Directory.Exists(imgDir)) Directory.CreateDirectory(imgDir);
+
+                    var destPath = Path.Combine(imgDir, fileName);
+                    try
+                    {
+                        File.Copy(sourcePath, destPath, overwrite: true);
+                        Logger.Info($"[AdminToolsForm] Изображение скопировано: {fileName}");
+
+                        _dataGridView.Rows[rowIndex].Cells["ImageFileName"].Value = fileName;
+
+                        using (var stream = new MemoryStream(File.ReadAllBytes(destPath)))
+                        {
+                            var originalImg = Image.FromStream(stream);
+                            var resizedImg = ResizeImage(originalImg, 50);
+                            _dataGridView.Rows[rowIndex].Cells["Preview"].Value = resizedImg;
+                        }
+
+                        _statusLabel.Text = $"Изображение выбрано: {fileName}";
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Exception(ex, $"[AdminToolsForm] Ошибка копирования изображения: {sourcePath}");
+                        MessageBox.Show($"Не удалось скопировать изображение:\n{ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private void BtnSave_Click(object sender, EventArgs e)
+        {
+            _statusLabel.Text = "Сохранение...";
+            try
+            {
+                SaveConfiguration();
+                _statusLabel.Text = "Конфигурация сохранена успешно";
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "[AdminToolsForm] Ошибка сохранения конфигурации");
+                _statusLabel.Text = "Ошибка сохранения";
+                MessageBox.Show($"Не удалось сохранить конфигурацию:\n{ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnCancel_Click(object sender, EventArgs e)
+        {
+            _statusLabel.Text = "Отменено";
+            DialogResult = DialogResult.Cancel;
+            Close();
+        }
+
+        /// <summary>
+        /// Сравнивает текущее значение строки с дефолтным.
+        /// Возвращает true, если значение отличается от дефолтного.
+        /// </summary>
+        private bool IsChanged(string current, string original)
+        {
+            // Нормализуем: null и пустая строка считаем эквивалентными
+            var c = current?.Trim() ?? string.Empty;
+            var o = original?.Trim() ?? string.Empty;
+            return !string.Equals(c, o, StringComparison.Ordinal);
+        }
+
+        private void SaveConfiguration()
+        {
+            var xmlPath = PathManager.sourceComandConfigFile;
+            var root = new XElement("Commands");
+            var savedCount = 0;
+            var skippedCount = 0;
+
+            foreach (DataGridViewRow row in _dataGridView.Rows)
+            {
+                var fullName = row.Cells["FullName"].Value?.ToString();
+                var currentTab = row.Cells["Tab"].Value?.ToString() ?? string.Empty;
+                var currentName = row.Cells["Name"].Value?.ToString() ?? string.Empty;
+                var currentDescription = row.Cells["Description"].Value?.ToString() ?? string.Empty;
+                var currentImageFileName = row.Cells["ImageFileName"].Value?.ToString() ?? string.Empty;
+
+                if (!_originalValues.ContainsKey(fullName))
+                {
+                    Logger.Warning($"[AdminToolsForm] Команда {fullName} не найдена в дефолтах, пропуск");
+                    continue;
+                }
+
+                var defaults = _originalValues[fullName];
+
+                // Определяем, какие поля изменились
+                var tabChanged = IsChanged(currentTab, defaults.Tab);
+                var nameChanged = IsChanged(currentName, defaults.Name);
+                var descChanged = IsChanged(currentDescription, defaults.Description);
+                var imageChanged = !string.IsNullOrWhiteSpace(currentImageFileName);
+
+                // Если ничего не изменилось — пропускаем команду
+                if (!tabChanged && !nameChanged && !descChanged && !imageChanged)
+                {
+                    skippedCount++;
+                    Logger.Debug($"[AdminToolsForm] Команда пропущена (все поля дефолтные): {fullName}");
+                    continue;
+                }
+
+                // Команда без вкладки не должна попадать в XML (иначе не будет работать)
+                if (string.IsNullOrWhiteSpace(currentTab))
+                {
+                    Logger.Warning($"[AdminToolsForm] Пропущена команда с пустой вкладкой: {fullName}");
+                    skippedCount++;
+                    continue;
+                }
+
+                var commandElement = new XElement("Command", new XElement("CmdCode", fullName));
+
+                // Записываем только изменённые поля
+                if (tabChanged) commandElement.Add(new XElement("CmdTab", currentTab));
+                if (nameChanged) commandElement.Add(new XElement("CmdName", currentName));
+                if (descChanged) commandElement.Add(new XElement("CmdDescription", currentDescription));
+                if (imageChanged) commandElement.Add(new XElement("CmdImage", currentImageFileName));
+
+                root.Add(commandElement);
+                savedCount++;
+
+                Logger.Debug($"[AdminToolsForm] Сохранена команда {fullName} | tab={tabChanged}, name={nameChanged}, desc={descChanged}, img={imageChanged}");
+            }
+
+            var doc = new XDocument(new XDeclaration("1.0", "UTF-8", null), root);
+            doc.Save(xmlPath);
+            Logger.Info($"[AdminToolsForm] Конфигурация сохранена | Записано: {savedCount} | Пропущено (дефолт): {skippedCount} | Файл: {xmlPath}");
+        }
+    }
+
+    public class MultilineEditForm : Form
+    {
+        private TextBox _textBox;
+        private Button _btnOk;
+        private Button _btnCancel;
+
+        public string EditedText => _textBox.Text;
+
+        public MultilineEditForm(string initialValue, string fieldName)
+        {
+            SetupForm(fieldName);
+            SetupControls();
+            _textBox.Text = initialValue;
+        }
+
+        private void SetupForm(string fieldName)
+        {
+            Text = $"Редактирование: {fieldName}";
+            Size = new Size(500, 400);
+            StartPosition = FormStartPosition.CenterParent;
+            ShowIcon = false;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+        }
+
+        private void SetupControls()
+        {
+            _textBox = new TextBox
+            {
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
+                Dock = DockStyle.Fill,
+                AcceptsReturn = true,
+                Font = new Font("Segoe UI", 10f)
+            };
+
+            var buttonPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 50,
+                FlowDirection = FlowDirection.RightToLeft,
+                Padding = new Padding(10)
+            };
+
+            _btnCancel = new Button { Text = "Отмена", Width = 80, Height = 30, DialogResult = DialogResult.Cancel };
+            _btnOk = new Button { Text = "OK", Width = 80, Height = 30, DialogResult = DialogResult.OK };
+
+            buttonPanel.Controls.Add(_btnCancel);
+            buttonPanel.Controls.Add(_btnOk);
+
+            Controls.Add(_textBox);
+            Controls.Add(buttonPanel);
+
+            AcceptButton = _btnOk;
+            CancelButton = _btnCancel;
+        }
+    }
+}

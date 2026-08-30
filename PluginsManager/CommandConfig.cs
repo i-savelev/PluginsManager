@@ -47,11 +47,11 @@ namespace PluginsManager
                 int count = 0;
                 foreach (var command in commands)
                 {
-                    string cmdCode = command.Element(CmdConfigFile.XmlCode[0])?.Value;
-                    string cmdTab = command.Element(CmdConfigFile.XmlTab[0])?.Value;
-                    string cmdName = command.Element(CmdConfigFile.XmlName[0])?.Value;
-                    string cmdDescription = command.Element(CmdConfigFile.XmlDescription[0])?.Value;
-                    string cmdImage = command.Element(CmdConfigFile.XmlImage[0])?.Value;
+                    string cmdCode = command.Element(CmdConfigFile.XmlCode[0])?.Value ?? string.Empty;
+                    string cmdTab = command.Element(CmdConfigFile.XmlTab[0])?.Value ?? string.Empty;
+                    string cmdName = command.Element(CmdConfigFile.XmlName[0])?.Value ?? string.Empty;
+                    string cmdDescription = command.Element(CmdConfigFile.XmlDescription[0])?.Value ?? string.Empty;
+                    string cmdImage = command.Element(CmdConfigFile.XmlImage[0])?.Value ?? string.Empty;
                     if (!commandConfigDictionary.ContainsKey(cmdCode))
                     {
                         commandConfigDictionary[cmdCode] = new Dictionary<string, string>()

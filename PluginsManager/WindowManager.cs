@@ -25,7 +25,7 @@ namespace PluginsManager
             window.Text = "Менеджер плагинов";
             window.groupBox1.Text = "Информация";
             window.tabControl.Font = new Font("Microsoft Sans Serif", 10, FontStyle.Regular);
-            window.toolStripButton1.Click += (s, e) => ChangeFolder();
+            window.toolStripButton1.Click += (s, e) => ShowUserConfigForm();
             window.toolStripButton1.Text = "Выбрать папку";
             window.toolStripButton2.Click += (s, e) => OpenGitHub();
             window.toolStripButton2.Text = "GitHub";
@@ -38,21 +38,55 @@ namespace PluginsManager
             window.ShowDialog();
         }
 
-        private void ChangeFolder()
+        /// <summary>
+        /// Открывает форму настроек пользователя и применяет изменения после сохранения.
+        /// </summary>
+        private void ShowUserConfigForm()
         {
             Logger.Separator();
-            Logger.Info("Изменение пути к корневой папке");
-            var dialogResult = UserConfig.SetPathToUserConfigFileDialog();
-            Logger.Info($"Диалог выбора новой папки завершен: {dialogResult}");
-            if (dialogResult)
+            Logger.Info("[WindowManager] Открытие формы настроек пользователя");
+
+            // Собираем список всех вкладок
+            var allTabs = Command_manager.CommandsDictionary.Keys.ToList();
+            Logger.Debug($"[WindowManager] Всего вкладок для настроек: {allTabs.Count}");
+
+            using (var form = new UserConfigForm(PathManager.sourceDir, UserConfig.exceptionTabs, UserConfig.post, allTabs))
             {
-                UserConfig.GetUserSettings();
-                CommandConfig.CreateConfigFile();
-                CommandConfig.GetDllSettings();
-                Dllmanager.CopyDll();
-                Command_manager.Refresh(PathManager.tempDllDir);
-                Window.tabControl.TabPages.Clear();
-                CreateTabs();
+                if (form.ShowDialog(Window) == DialogResult.OK)
+                {
+                    Logger.Info("[WindowManager] Настройки сохранены, применяем изменения");
+
+                    // 1. Сохраняем конфиг пользователя
+                    UserConfig.SaveUserSettings(form.SelectedFolderPath, form.ExcludedTabsString, form.SelectedPost);
+
+                    // 2. Перечитываем настройки (обновляет PathManager.sourceDir)
+                    UserConfig.GetUserSettings();
+
+                    // 3. Создаём конфиг команд в исходной папке, если его нет
+                    CommandConfig.CreateConfigFile();
+
+                    // 4. Копируем все файлы (включая commands_config.xml) во временную папку
+                    TempFiles.CopyToTemp(PathManager.sourceDir);
+
+                    // 5. Читаем конфиг команд из временной папки
+                    CommandConfig.GetDllSettings();
+
+                    // 6. Готовим DLL для анализа
+                    Dllmanager.CopyDll();
+
+                    // 7. Обновляем менеджер команд (анализирует DLL с учётом XML)
+                    Command_manager.Refresh(PathManager.tempDllDir);
+
+                    // 8. Перерисовываем вкладки
+                    Window.tabControl.TabPages.Clear();
+                    CreateTabs();
+
+                    Logger.Info("[WindowManager] Настройки применены успешно");
+                }
+                else
+                {
+                    Logger.Info("[WindowManager] Изменение настроек отменено");
+                }
             }
         }
 
@@ -122,18 +156,26 @@ namespace PluginsManager
             Logger.Info("Отрисовка вкладок");
             if (Command_manager.CommandsDictionary != null)
             {
+                // Разделяем исключённые вкладки для точного сравнения
+                var excludedTabs = UserConfig.exceptionTabs.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                Logger.Debug($"[WindowManager] Исключённые вкладки: {excludedTabs.Length} шт.");
+
                 foreach (var tab in Command_manager.CommandsDictionary)
                 {
+                    var isExcluded = excludedTabs.Contains(tab.Key);
+
                     if (string.Equals(UserConfig.post, UserConfigFile.ManagerPost, StringComparison.InvariantCultureIgnoreCase))
                     {
-                        if (!UserConfig.exceptionTabs.Contains(tab.Key))
+                        // Manager видит все вкладки, кроме исключённых
+                        if (!isExcluded)
                         {
                             CreateNewTab(tab.Key);
                         }
                     }
                     else
                     {
-                        if (!UserConfig.exceptionTabs.Contains(tab.Key) & !tab.Key.Contains('#'))
+                        // User не видит вкладки с '#' и исключённые
+                        if (!isExcluded && !tab.Key.Contains('#'))
                         {
                             CreateNewTab(tab.Key);
                         }

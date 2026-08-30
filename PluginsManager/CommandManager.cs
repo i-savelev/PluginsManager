@@ -17,6 +17,7 @@ namespace PluginsManager
         public UIApplication UiApp { get; set; }
         public List<Type> AllTypes = new List<Type>();
         public List<Command> AllCommands = new List<Command>();
+        public Dictionary<string, DllCommandMetadata> DllMetadata = new Dictionary<string, DllCommandMetadata>();
         public Dictionary<string, List<Command>> CommandsDictionary = new Dictionary<string, List<Command>>();
         public string FolderPath { get; set; }
         public ExternalEvent ExternalEvent { get; set; }
@@ -38,6 +39,7 @@ namespace PluginsManager
             AllCommands.Clear();
             AllTypes.Clear();
             CommandsDictionary.Clear();
+            DllMetadata.Clear();
             FolderPath = folderPath;
             GetExternalCommandsFromAssembly();
             Handler eventHandler = new Handler(this);
@@ -204,41 +206,90 @@ namespace PluginsManager
             var tabName = string.Empty;
             var commandDescription = string.Empty;
             var commandImage = string.Empty;
-            var metadataSource = "dll metadata";
 
+            // Шаг 1: читаем значения из DLL (рефлексия) — это дефолтные значения
+            commandName = type.GetProperty(Const.DllFields.Name, BindingFlags.Public | BindingFlags.Static)
+                ?.GetValue(null)?.ToString() ?? string.Empty;
+            tabName = type.GetProperty(Const.DllFields.TabName, BindingFlags.Public | BindingFlags.Static)
+                ?.GetValue(null)?.ToString() ?? string.Empty;
+            commandDescription = type.GetProperty(Const.DllFields.Description, BindingFlags.Public | BindingFlags.Static)
+                ?.GetValue(null)?.ToString() ?? string.Empty;
+            commandImage = type.GetProperty(Const.DllFields.Image, BindingFlags.Public | BindingFlags.Static)
+                ?.GetValue(null)?.ToString() ?? string.Empty;
+
+            // Шаг 2: загружаем изображение из DLL до слияния с XML
+            Image dllImage = null;
+            if (!string.IsNullOrEmpty(commandImage))
+            {
+                using (Stream stream = assembly.GetManifestResourceStream(commandImage))
+                {
+                    if (stream != null)
+                    {
+                        dllImage = Image.FromStream(stream);
+                    }
+                }
+            }
+
+            // Шаг 3: сохраняем чистые данные из DLL до слияния с XML
+            DllMetadata[type.FullName] = new DllCommandMetadata
+            {
+                Tab = tabName,
+                Name = commandName,
+                Description = commandDescription,
+                ImageResourceName = commandImage,
+                Image = dllImage
+            };
+
+            // Трекинг источников для лога
+            var nameSource = "dll";
+            var tabSource = "dll";
+            var descSource = "dll";
+            var imgSource = "dll";
+
+            // Шаг 4: если команда есть в XML, переопределяем каждое поле только если оно не пустое
             if (CommandConfig.CommamdConfigDictionary.ContainsKey(type.FullName))
             {
-                metadataSource = "commands_config.xml";
-                commandName = CommandConfig.CommamdConfigDictionary[type.FullName][CmdConfigFile.XmlName[0]];
-                tabName = CommandConfig.CommamdConfigDictionary[type.FullName][CmdConfigFile.XmlTab[0]];
-                commandDescription = CommandConfig.CommamdConfigDictionary[type.FullName][CmdConfigFile.XmlDescription[0]];
-                commandImage = CommandConfig.CommamdConfigDictionary[type.FullName][CmdConfigFile.XmlImage[0]];
+                var config = CommandConfig.CommamdConfigDictionary[type.FullName];
+
+                var xmlTab = config.ContainsKey(CmdConfigFile.XmlTab[0]) ? config[CmdConfigFile.XmlTab[0]] : string.Empty;
+                if (!string.IsNullOrWhiteSpace(xmlTab))
+                {
+                    tabName = xmlTab;
+                    tabSource = "xml";
+                }
+
+                var xmlName = config.ContainsKey(CmdConfigFile.XmlName[0]) ? config[CmdConfigFile.XmlName[0]] : string.Empty;
+                if (!string.IsNullOrWhiteSpace(xmlName))
+                {
+                    commandName = xmlName;
+                    nameSource = "xml";
+                }
+
+                var xmlDescription = config.ContainsKey(CmdConfigFile.XmlDescription[0]) ? config[CmdConfigFile.XmlDescription[0]] : string.Empty;
+                if (!string.IsNullOrWhiteSpace(xmlDescription))
+                {
+                    commandDescription = xmlDescription;
+                    descSource = "xml";
+                }
+
+                var xmlImage = config.ContainsKey(CmdConfigFile.XmlImage[0]) ? config[CmdConfigFile.XmlImage[0]] : string.Empty;
+                if (!string.IsNullOrWhiteSpace(xmlImage))
+                {
+                    commandImage = xmlImage;
+                    imgSource = "xml";
+                }
             }
-            else
-            {
-                commandName = type.GetProperty(Const.DllFields.Name, BindingFlags.Public | BindingFlags.Static)
-                    ?.GetValue(null)
-                    ?.ToString();
-                tabName = type.GetProperty(Const.DllFields.TabName, BindingFlags.Public | BindingFlags.Static)
-                    ?.GetValue(null)
-                    ?.ToString();
-                commandDescription = type.GetProperty(Const.DllFields.Description, BindingFlags.Public | BindingFlags.Static)
-                    ?.GetValue(null)
-                    ?.ToString();
-                commandImage = type.GetProperty(Const.DllFields.Image, BindingFlags.Public | BindingFlags.Static)
-                    ?.GetValue(null)
-                    ?.ToString();
-            }
-            Logger.Info($"Metadata source = {metadataSource} | name = [{commandName}] | tab = [{tabName}] | image = [{commandImage}]");
+
+            Logger.Info($"Metadata merged | tab={tabSource}[{tabName}] | name={nameSource}[{commandName}] | desc={descSource} | img={imgSource}[{commandImage}]");
 
             if (!string.IsNullOrEmpty(tabName))
             {
                 Image image = Properties.Resources.imgPlaceholder;
 
-                if (CommandConfig.CommamdConfigDictionary.ContainsKey(type.FullName))
+                // Шаг 5: загружаем итоговое изображение в зависимости от источника
+                if (imgSource == "xml" && !string.IsNullOrEmpty(commandImage))
                 {
                     var path = System.IO.Path.Combine(FolderPath, CmdConfigFile.ImageFolderName, commandImage);
-
                     if (File.Exists(path))
                     {
                         byte[] imageBytes = File.ReadAllBytes(path);
@@ -256,20 +307,12 @@ namespace PluginsManager
                         }
                     }
                 }
-                else
+                else if (dllImage != null)
                 {
-                    if (!string.IsNullOrEmpty(commandImage))
-                    {
-                        using (Stream stream = assembly.GetManifestResourceStream(commandImage))
-                        {
-                            if (stream != null)
-                            {
-                                image = Image.FromStream(stream);
-                                Logger.Debug($"Изображение загружено из ресурсов сборки [{commandImage}]");
-                            }
-                        }
-                    }
+                    image = dllImage;
+                    Logger.Debug($"Изображение загружено из ресурсов сборки [{commandImage}]");
                 }
+
                 var command = new Command(type.FullName, commandName, commandDescription, image, dllFilePath);
                 AllCommands.Add(command);
 
@@ -341,4 +384,16 @@ namespace PluginsManager
             return false;
         }
     }
+}
+
+/// <summary>
+/// Чистые метаданные команды из DLL (без учёта XML-конфига).
+/// </summary>
+public class DllCommandMetadata
+{
+    public string Tab { get; set; }
+    public string Name { get; set; }
+    public string Description { get; set; }
+    public string ImageResourceName { get; set; }
+    public Image Image { get; set; }
 }

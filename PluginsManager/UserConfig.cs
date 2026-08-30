@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Windows.Forms;
 using System.Xml.Linq;
@@ -84,6 +85,45 @@ namespace PluginsManager
                     Logger.Warning("Пользователь отменил выбор папки");
                     return false;
                 }
+            }
+        }
+        /// <summary>
+        /// Сохраняет настройки пользователя в файл конфигурации.
+        /// </summary>
+        /// <param name="newFolderPath">Путь к исходной папке с плагинами.</param>
+        /// <param name="newExceptionTabs">Исключённые вкладки (через точку с запятой).</param>
+        /// <param name="newPost">Роль пользователя (user/manager).</param>
+        public static void SaveUserSettings(string newFolderPath, string newExceptionTabs, string newPost)
+        {
+            Logger.Info($"[UserConfig] Сохранение настроек | FolderPath={newFolderPath} | Post={newPost} | ExceptionTabs={newExceptionTabs}");
+
+            try
+            {
+                // Создаём папку конфигурации, если её нет
+                if (!Directory.Exists(PathManager.userFolderFile))
+                {
+                    Directory.CreateDirectory(PathManager.userFolderFile);
+                    Logger.Info($"[UserConfig] Создана папка конфигурации: {PathManager.userFolderFile}");
+                }
+
+                XElement settings = new XElement(Const.UserConfigFile.XmlSettings,
+                    new XElement(Const.UserConfigFile.XmlFolderPath, newFolderPath),
+                    new XElement(Const.UserConfigFile.XmlExceptionTabs, newExceptionTabs),
+                    new XElement(Const.UserConfigFile.XmlPost, newPost)
+                );
+                settings.Save(PathManager.userConfigFile);
+
+                // Обновляем статические поля
+                PathManager.SetSourcePath(newFolderPath);
+                exceptionTabs = newExceptionTabs;
+                post = newPost;
+
+                Logger.Info($"[UserConfig] Конфигурация сохранена: {PathManager.userConfigFile}");
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "[UserConfig] Ошибка сохранения конфигурации");
+                throw;
             }
         }
     }

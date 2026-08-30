@@ -14,30 +14,27 @@ namespace PluginsManager.AdminTools
         private Button _btnSave;
         private Button _btnCancel;
         private Label _statusLabel;
-        private List<Command> _commands;
         private CommandManager _commandManager;
 
         /// <summary>
-        /// Хранит исходные (дефолтные) значения команды, полученные из DLL.
-        /// Используется для определения изменённых полей и сброса к дефолтам.
+        /// Хранит исходные (дефолтные) значения команды, полученные из DLL или пустые.
         /// </summary>
         private class CommandDefaults
         {
-            public string Tab { get; set; }
-            public string Name { get; set; }
-            public string Description { get; set; }
+            public string Tab { get; set; } = string.Empty;
+            public string Name { get; set; } = string.Empty;
+            public string Description { get; set; } = string.Empty;
             public Image OriginalImage { get; set; }
         }
 
         /// <summary>
-        /// Словарь дефолтных значений по CmdCode.
+        /// Словарь дефолтных значений по FullName команды.
         /// </summary>
         private Dictionary<string, CommandDefaults> _originalValues = new Dictionary<string, CommandDefaults>();
 
         public AdminToolsForm(CommandManager commandManager)
         {
             _commandManager = commandManager ?? throw new ArgumentNullException(nameof(commandManager));
-            _commands = commandManager.AllCommands ?? throw new ArgumentNullException(nameof(commandManager.AllCommands));
             SetupForm();
             SetupControls();
             LoadDataToGrid();
@@ -174,10 +171,10 @@ namespace PluginsManager.AdminTools
                 ImageLayout = DataGridViewImageCellLayout.Normal,
                 Width = 60,
                 MinimumWidth = 60,
+                ValueType = typeof(Image),  // ← добавлено
                 DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
             };
 
-            // Кнопка сброса к дефолтным настройкам
             var colReset = new DataGridViewButtonColumn
             {
                 Name = "Reset",
@@ -187,8 +184,7 @@ namespace PluginsManager.AdminTools
                 FillWeight = 8,
                 Width = 80,
                 MinimumWidth = 80,
-                FlatStyle = FlatStyle.Flat,
-                ReadOnly = false
+                FlatStyle = FlatStyle.Flat
             };
 
             _dataGridView.Columns.Add(colFullName);
@@ -203,6 +199,15 @@ namespace PluginsManager.AdminTools
 
             _dataGridView.CellClick += DataGridView_CellClick;
             _dataGridView.CellBeginEdit += DataGridView_CellBeginEdit;
+            _dataGridView.DataError += DataGridView_DataError;
+        }
+        /// <summary>
+        /// Обработчик ошибок DataGridView. Подавляет стандартное окно и логирует ошибку.
+        /// </summary>
+        private void DataGridView_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            Logger.Warning($"[AdminToolsForm] DataGridView DataError | Row={e.RowIndex} | Col={e.ColumnIndex} | {e.Exception?.Message}");
+            e.ThrowException = false; // Подавляем окно ошибки
         }
 
         private Image ResizeImage(Image source, int targetSize)
@@ -228,53 +233,60 @@ namespace PluginsManager.AdminTools
         }
 
         /// <summary>
-        /// Извлекает исходные (дефолтные) значения команды из DLL.
-        /// Эти значения не учитывают пользовательский XML-конфиг.
+        /// Извлекает дефолтные значения для типа команды.
+        /// Если команда есть в AllCommands — берёт данные оттуда.
+        /// Если нет — возвращает пустые значения (пользователь заполнит вручную).
         /// </summary>
-        private CommandDefaults GetDllDefaults(Command cmd)
+        private CommandDefaults GetDllDefaults(Type type)
         {
-            var tab = string.Empty;
+            var fullName = type.FullName;
 
-            // Вкладка — из CommandManager (он уже распарсил IS_TAB_NAME из DLL)
-            var kvp = _commandManager.CommandsDictionary.FirstOrDefault(x => x.Value.Any(c => c.CmdCode == cmd.CmdCode));
-            if (!string.IsNullOrEmpty(kvp.Key))
+            // Берём чистые данные из DLL (без учёта XML)
+            if (_commandManager.DllMetadata.ContainsKey(fullName))
             {
-                tab = kvp.Key;
+                var dllMeta = _commandManager.DllMetadata[fullName];
+                return new CommandDefaults
+                {
+                    Tab = dllMeta.Tab ?? string.Empty,
+                    Name = dllMeta.Name ?? string.Empty,
+                    Description = dllMeta.Description ?? string.Empty,
+                    OriginalImage = dllMeta.Image
+                };
             }
 
-            return new CommandDefaults
-            {
-                Tab = tab,
-                Name = cmd.CmdName ?? string.Empty,
-                Description = cmd.CmdDescription ?? string.Empty,
-                OriginalImage = cmd.CmdImage
-            };
+            // Команда не в DllMetadata — пустые дефолты
+            Logger.Debug($"[AdminToolsForm] Команда {fullName} не найдена в DllMetadata, используются пустые дефолты");
+            return new CommandDefaults();
         }
 
         private void LoadDataToGrid()
         {
-            Logger.Info($"[AdminToolsForm] Загрузка данных в таблицу | Команд: {_commands.Count}");
+            var allTypes = _commandManager.AllTypes;
+            Logger.Info($"[AdminToolsForm] Загрузка данных в таблицу | Всего типов: {allTypes.Count}");
             _statusLabel.Text = "Загрузка данных...";
             _dataGridView.Rows.Clear();
             _originalValues.Clear();
 
-            foreach (var cmd in _commands)
+            foreach (var type in allTypes)
             {
-                // Дефолтные значения из DLL (для сравнения и сброса)
-                var defaults = GetDllDefaults(cmd);
-                _originalValues[cmd.CmdCode] = defaults;
+                var fullName = type.FullName;
+                if (string.IsNullOrEmpty(fullName)) continue;
 
-                // Текущие значения для отображения (сначала дефолты, потом XML-переопределения)
+                // Дефолтные значения (из AllCommands или пустые)
+                var defaults = GetDllDefaults(type);
+                _originalValues[fullName] = defaults;
+
+                // Текущие значения для отображения
                 var currentTab = defaults.Tab;
                 var currentName = defaults.Name;
                 var currentDescription = defaults.Description;
                 var currentImageFileName = string.Empty;
                 var currentImage = defaults.OriginalImage;
 
-                // Приоритет: если есть запись в XML — переопределяем
-                if (CommandConfig.CommamdConfigDictionary != null && CommandConfig.CommamdConfigDictionary.ContainsKey(cmd.CmdCode))
+                // Переопределения из XML
+                if (CommandConfig.CommamdConfigDictionary != null && CommandConfig.CommamdConfigDictionary.ContainsKey(fullName))
                 {
-                    var config = CommandConfig.CommamdConfigDictionary[cmd.CmdCode];
+                    var config = CommandConfig.CommamdConfigDictionary[fullName];
 
                     var xmlTab = config.ContainsKey("CmdTab") ? config["CmdTab"] : string.Empty;
                     if (!string.IsNullOrEmpty(xmlTab)) currentTab = xmlTab;
@@ -289,7 +301,6 @@ namespace PluginsManager.AdminTools
                     if (!string.IsNullOrEmpty(xmlImage))
                     {
                         currentImageFileName = xmlImage;
-                        // Пытаемся загрузить картинку из папки img
                         var imgPath = Path.Combine(PathManager.sourceDir, Const.CmdConfigFile.ImageFolderName, xmlImage);
                         if (File.Exists(imgPath))
                         {
@@ -302,7 +313,7 @@ namespace PluginsManager.AdminTools
                             }
                             catch (Exception ex)
                             {
-                                Logger.Warning($"[AdminToolsForm] Не удалось загрузить изображение из XML: {imgPath} | {ex.Message}");
+                                Logger.Warning($"[AdminToolsForm] Не удалось загрузить изображение: {imgPath} | {ex.Message}");
                             }
                         }
                     }
@@ -310,25 +321,25 @@ namespace PluginsManager.AdminTools
 
                 var assemblyName = string.Empty;
                 var className = string.Empty;
-                ParseFullName(cmd.CmdCode, out assemblyName, out className);
+                ParseFullName(fullName, out assemblyName, out className);
 
-                var imageToDisplay = currentImage != null ? ResizeImage(currentImage, 50) : null;
+                var imageToDisplay = currentImage != null ? ResizeImage(currentImage, 50) : new Bitmap(1, 1);
 
                 _dataGridView.Rows.Add(
-                    cmd.CmdCode,
+                    fullName,
                     assemblyName,
                     className,
                     currentTab,
                     currentName,
                     currentDescription,
                     currentImageFileName,
-                    imageToDisplay,
+                    imageToDisplay,  // ← передаём null напрямую, без DBNull.Value
                     "↺ Дефолт"
                 );
             }
 
-            _statusLabel.Text = $"Загружено: {_commands.Count} команд";
-            Logger.Info("[AdminToolsForm] Данные загружены в таблицу");
+            _statusLabel.Text = $"Загружено: {allTypes.Count} команд";
+            Logger.Info($"[AdminToolsForm] Данные загружены в таблицу | Строк: {_dataGridView.Rows.Count}");
         }
 
         private void ParseFullName(string fullName, out string assemblyName, out string className)
@@ -366,8 +377,7 @@ namespace PluginsManager.AdminTools
         }
 
         /// <summary>
-        /// Сбрасывает значения строки к дефолтным (из DLL).
-        /// Очищает имя выбранного изображения — это уберёт команду из XML при сохранении.
+        /// Сбрасывает значения строки к дефолтным (из DLL или пустым).
         /// </summary>
         private void ResetRowToDefaults(int rowIndex)
         {
@@ -382,10 +392,10 @@ namespace PluginsManager.AdminTools
             _dataGridView.Rows[rowIndex].Cells["Tab"].Value = defaults.Tab;
             _dataGridView.Rows[rowIndex].Cells["Name"].Value = defaults.Name;
             _dataGridView.Rows[rowIndex].Cells["Description"].Value = defaults.Description;
-            _dataGridView.Rows[rowIndex].Cells["ImageFileName"].Value = string.Empty; // очистка — тег CmdImage не будет записан
+            _dataGridView.Rows[rowIndex].Cells["ImageFileName"].Value = string.Empty;
 
             var resizedImg = defaults.OriginalImage != null ? ResizeImage(defaults.OriginalImage, 50) : null;
-            _dataGridView.Rows[rowIndex].Cells["Preview"].Value = resizedImg;
+            _dataGridView.Rows[rowIndex].Cells["Preview"].Value = (object)resizedImg ?? DBNull.Value;
 
             Logger.Info($"[AdminToolsForm] Строка сброшена к дефолтам: {fullName}");
             _statusLabel.Text = $"Сброшено к дефолтам: {_dataGridView.Rows[rowIndex].Cells["Name"].Value}";
@@ -442,7 +452,7 @@ namespace PluginsManager.AdminTools
                         {
                             var originalImg = Image.FromStream(stream);
                             var resizedImg = ResizeImage(originalImg, 50);
-                            _dataGridView.Rows[rowIndex].Cells["Preview"].Value = resizedImg;
+                            _dataGridView.Rows[rowIndex].Cells["Preview"].Value = (object)resizedImg ?? DBNull.Value;
                         }
 
                         _statusLabel.Text = $"Изображение выбрано: {fileName}";
@@ -482,12 +492,10 @@ namespace PluginsManager.AdminTools
         }
 
         /// <summary>
-        /// Сравнивает текущее значение строки с дефолтным.
-        /// Возвращает true, если значение отличается от дефолтного.
+        /// Сравнивает текущее значение с дефолтным. Пустая строка и null считаются эквивалентными.
         /// </summary>
         private bool IsChanged(string current, string original)
         {
-            // Нормализуем: null и пустая строка считаем эквивалентными
             var c = current?.Trim() ?? string.Empty;
             var o = original?.Trim() ?? string.Empty;
             return !string.Equals(c, o, StringComparison.Ordinal);
@@ -508,21 +516,19 @@ namespace PluginsManager.AdminTools
                 var currentDescription = row.Cells["Description"].Value?.ToString() ?? string.Empty;
                 var currentImageFileName = row.Cells["ImageFileName"].Value?.ToString() ?? string.Empty;
 
-                if (!_originalValues.ContainsKey(fullName))
+                if (string.IsNullOrEmpty(fullName) || !_originalValues.ContainsKey(fullName))
                 {
-                    Logger.Warning($"[AdminToolsForm] Команда {fullName} не найдена в дефолтах, пропуск");
+                    Logger.Warning($"[AdminToolsForm] Пропущена строка без FullName или дефолтов");
                     continue;
                 }
 
                 var defaults = _originalValues[fullName];
 
-                // Определяем, какие поля изменились
                 var tabChanged = IsChanged(currentTab, defaults.Tab);
                 var nameChanged = IsChanged(currentName, defaults.Name);
                 var descChanged = IsChanged(currentDescription, defaults.Description);
                 var imageChanged = !string.IsNullOrWhiteSpace(currentImageFileName);
 
-                // Если ничего не изменилось — пропускаем команду
                 if (!tabChanged && !nameChanged && !descChanged && !imageChanged)
                 {
                     skippedCount++;
@@ -530,7 +536,6 @@ namespace PluginsManager.AdminTools
                     continue;
                 }
 
-                // Команда без вкладки не должна попадать в XML (иначе не будет работать)
                 if (string.IsNullOrWhiteSpace(currentTab))
                 {
                     Logger.Warning($"[AdminToolsForm] Пропущена команда с пустой вкладкой: {fullName}");
@@ -540,7 +545,6 @@ namespace PluginsManager.AdminTools
 
                 var commandElement = new XElement("Command", new XElement("CmdCode", fullName));
 
-                // Записываем только изменённые поля
                 if (tabChanged) commandElement.Add(new XElement("CmdTab", currentTab));
                 if (nameChanged) commandElement.Add(new XElement("CmdName", currentName));
                 if (descChanged) commandElement.Add(new XElement("CmdDescription", currentDescription));

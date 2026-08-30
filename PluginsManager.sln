@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.9.12112.369 stable
+VisualStudioVersion = 18.9.12112.369
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PluginsManager", "PluginsManager\PluginsManager.csproj", "{F443DE8D-C791-4DC7-94CB-288E705ED749}"
 EndProject
@@ -23,8 +23,8 @@ Global
 		{415691B0-1282-47A8-A717-F24C3E58B824}.Build|Any CPU.Build.0 = Build|Any CPU
 		{415691B0-1282-47A8-A717-F24C3E58B824}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{415691B0-1282-47A8-A717-F24C3E58B824}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{91A26D4B-6F17-48DD-A608-5D08AC618711}.Build|Any CPU.ActiveCfg = Debug|Any CPU
-		{91A26D4B-6F17-48DD-A608-5D08AC618711}.Build|Any CPU.Build.0 = Debug|Any CPU
+		{91A26D4B-6F17-48DD-A608-5D08AC618711}.Build|Any CPU.ActiveCfg = Build|Any CPU
+		{91A26D4B-6F17-48DD-A608-5D08AC618711}.Build|Any CPU.Build.0 = Build|Any CPU
 		{91A26D4B-6F17-48DD-A608-5D08AC618711}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{91A26D4B-6F17-48DD-A608-5D08AC618711}.Debug|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection

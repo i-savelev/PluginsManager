@@ -33,11 +33,6 @@
             public static string AssemblyNamePluginsManager = "PluginsManager.PluginManager";
             public static string LargeImagePluginsManager = "PluginsManager.Resources.robot32.png";
             public static string SmallImagePluginsManager = "PluginsManager.Resources.robot16.png";
-
-            public static string ButtonNameCommandinFolder = "Показать все\nкоманды в папке";
-            public static string AssemblyNameCommandinFolder = "PluginsManager.AllCommandsInFolder";
-            public static string LargeImageCommandinFolder = "PluginsManager.Resources.folderWheel32.png";
-            public static string SmallImageCommandinFolder = "PluginsManager.Resources.folderWheel16.png";
         }
         public static class CmdConfigFile
         {

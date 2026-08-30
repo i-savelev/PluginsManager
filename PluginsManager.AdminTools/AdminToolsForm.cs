@@ -65,6 +65,8 @@ namespace PluginsManager.AdminTools
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders
             };
+            EnableDoubleBuffering(_dataGridView);
+
 
             SetupDataGridViewColumns();
 
@@ -187,6 +189,21 @@ namespace PluginsManager.AdminTools
                 FlatStyle = FlatStyle.Flat
             };
 
+            // Источник данных (многострочный текст)
+            var colSource = new DataGridViewTextBoxColumn
+            {
+                Name = "Source",
+                HeaderText = "Источник",
+                FillWeight = 10,
+                ReadOnly = true,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    WrapMode = DataGridViewTriState.True,
+                    Alignment = DataGridViewContentAlignment.TopLeft,
+                    Font = new Font("Consolas", 8.5f)
+                }
+            };
+
             _dataGridView.Columns.Add(colFullName);
             _dataGridView.Columns.Add(colAssembly);
             _dataGridView.Columns.Add(colClass);
@@ -196,6 +213,7 @@ namespace PluginsManager.AdminTools
             _dataGridView.Columns.Add(colImageFileName);
             _dataGridView.Columns.Add(colPreview);
             _dataGridView.Columns.Add(colReset);
+            _dataGridView.Columns.Add(colSource);
 
             _dataGridView.CellClick += DataGridView_CellClick;
             _dataGridView.CellBeginEdit += DataGridView_CellBeginEdit;
@@ -264,6 +282,7 @@ namespace PluginsManager.AdminTools
             var allTypes = _commandManager.AllTypes;
             Logger.Info($"[AdminToolsForm] Загрузка данных в таблицу | Всего типов: {allTypes.Count}");
             _statusLabel.Text = "Загрузка данных...";
+            _dataGridView.SuspendLayout();
             _dataGridView.Rows.Clear();
             _originalValues.Clear();
 
@@ -301,7 +320,7 @@ namespace PluginsManager.AdminTools
                     if (!string.IsNullOrEmpty(xmlImage))
                     {
                         currentImageFileName = xmlImage;
-                        var imgPath = Path.Combine(PathManager.sourceDir, Const.CmdConfigFile.ImageFolderName, xmlImage);
+                        var imgPath = Path.Combine(PathManager.sourceDir, PluginsManager.Const.CmdConfigFile.ImageFolderName, xmlImage);
                         if (File.Exists(imgPath))
                         {
                             try
@@ -319,6 +338,31 @@ namespace PluginsManager.AdminTools
                     }
                 }
 
+                // Определение источника каждого поля
+                var tabSource = "DLL";
+                var nameSource = "DLL";
+                var descSource = "DLL";
+                var imgSource = "DLL";
+
+                if (CommandConfig.CommamdConfigDictionary != null && CommandConfig.CommamdConfigDictionary.ContainsKey(fullName))
+                {
+                    var config = CommandConfig.CommamdConfigDictionary[fullName];
+
+                    if (config.ContainsKey("CmdTab") && !string.IsNullOrWhiteSpace(config["CmdTab"]))
+                        tabSource = "XML";
+
+                    if (config.ContainsKey("CmdName") && !string.IsNullOrWhiteSpace(config["CmdName"]))
+                        nameSource = "XML";
+
+                    if (config.ContainsKey("CmdDescription") && !string.IsNullOrWhiteSpace(config["CmdDescription"]))
+                        descSource = "XML";
+
+                    if (config.ContainsKey("CmdImage") && !string.IsNullOrWhiteSpace(config["CmdImage"]))
+                        imgSource = "XML";
+                }
+
+                var sourceText = $"Tab: {tabSource}\nName: {nameSource}\nDesc: {descSource}\nImage: {imgSource}";
+
                 var assemblyName = string.Empty;
                 var className = string.Empty;
                 ParseFullName(fullName, out assemblyName, out className);
@@ -333,13 +377,25 @@ namespace PluginsManager.AdminTools
                     currentName,
                     currentDescription,
                     currentImageFileName,
-                    imageToDisplay,  // ← передаём null напрямую, без DBNull.Value
-                    "↺ Дефолт"
+                    imageToDisplay, 
+                    "↺ Дефолт",
+                    sourceText
                 );
             }
-
+            _dataGridView.ResumeLayout();
             _statusLabel.Text = $"Загружено: {allTypes.Count} команд";
             Logger.Info($"[AdminToolsForm] Данные загружены в таблицу | Строк: {_dataGridView.Rows.Count}");
+        }
+        /// <summary>
+        /// Включает двойную буферизацию для DataGridView, устраняя мерцание и зависания при прокрутке.
+        /// </summary>
+        private static void EnableDoubleBuffering(DataGridView dgv)
+        {
+            var propertyInfo = dgv.GetType().GetProperty(
+                "DoubleBuffered",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+            propertyInfo?.SetValue(dgv, true, null);
         }
 
         private void ParseFullName(string fullName, out string assemblyName, out string className)
@@ -396,7 +452,8 @@ namespace PluginsManager.AdminTools
 
             var resizedImg = defaults.OriginalImage != null ? ResizeImage(defaults.OriginalImage, 50) : null;
             _dataGridView.Rows[rowIndex].Cells["Preview"].Value = (object)resizedImg ?? DBNull.Value;
-
+            var sourceText = "Tab: DLL\nName: DLL\nDesc: DLL\nImage: DLL";
+            _dataGridView.Rows[rowIndex].Cells["Source"].Value = sourceText;
             Logger.Info($"[AdminToolsForm] Строка сброшена к дефолтам: {fullName}");
             _statusLabel.Text = $"Сброшено к дефолтам: {_dataGridView.Rows[rowIndex].Cells["Name"].Value}";
         }
@@ -437,7 +494,7 @@ namespace PluginsManager.AdminTools
                     var sourcePath = dialog.FileName;
                     var fileName = Path.GetFileName(sourcePath);
 
-                    var imgDir = Path.Combine(PathManager.sourceDir, Const.CmdConfigFile.ImageFolderName);
+                    var imgDir = Path.Combine(PathManager.sourceDir, PluginsManager.Const.CmdConfigFile.ImageFolderName);
                     if (!Directory.Exists(imgDir)) Directory.CreateDirectory(imgDir);
 
                     var destPath = Path.Combine(imgDir, fileName);

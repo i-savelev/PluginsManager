@@ -1,0 +1,11 @@
+<RevitAddIns>
+	<AddIn Type="Application">
+		<Name>Plugins Manager</Name>
+		<Assembly>PluginsManager\PluginsManager.AdminTools.dll</Assembly>
+		<AddInId>73457442-47E3-42E9-9C87-83911418AEA2</AddInId>
+		<FullClassName>PluginsManager.AdminTools.App</FullClassName>
+		<VendorId>i_savelev</VendorId>
+		<VendorDescription>https://github.com/i-savelev/PluginsManager</VendorDescription>
+		<Text>Plugins Manager</Text>
+	</AddIn>
+</RevitAddIns>

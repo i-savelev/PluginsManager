@@ -27,11 +27,6 @@ namespace PluginsManager
             btnFamilyCatalog.LargeImage = GetImageFromResources(Const.AppProperties.LargeImagePluginsManager);
             btnFamilyCatalog.Image = GetImageFromResources(Const.AppProperties.SmallImagePluginsManager);
 
-            var btnDataAllCommandsInFolder = new PushButtonData(Const.AppProperties.ButtonNameCommandinFolder, Const.AppProperties.ButtonNameCommandinFolder, assemblyPath, Const.AppProperties.AssemblyNameCommandinFolder);
-            var btnAllCommandsInFolder = panel.AddItem(btnDataAllCommandsInFolder) as PushButton;
-            btnAllCommandsInFolder.LargeImage = GetImageFromResources(Const.AppProperties.LargeImageCommandinFolder);
-            btnAllCommandsInFolder.Image = GetImageFromResources(Const.AppProperties.SmallImageCommandinFolder);
-
             return Result.Succeeded;
         }
         public BitmapImage GetImageFromResources(string resourceName)

@@ -2,12 +2,7 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Reflection.Emit;
-using System.Security.Policy;
-using System.Xml.Linq;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace PluginsManager.AdminTools
 {

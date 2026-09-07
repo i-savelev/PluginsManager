@@ -16,10 +16,10 @@ namespace PluginsManager
         public static string AdminDllFolder = @"..\PluginsManager.AdminTools\bin\Build\";
         public static string AdminDllFileName = "PluginsManager.AdminTools.dll";
 
-        public static string SubfolderName = "PluginsManager";
+        public static string SubfolderName = "PluginsManager"; 
         public static string ProjectName = "Plugins Manager";
         public static string Guid = "8BD7D784-31D5-4536-9FE2-416A2DC958B8";
-        public static string UpgradeGuid = "8BD7D784-31D5-4536-9FE2-416A2DC958B8";
         public static string OutputDir = "..\\";
+
     }
 }

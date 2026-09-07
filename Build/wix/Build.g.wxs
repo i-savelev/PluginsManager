@@ -6,8 +6,8 @@
 </auto-generated>
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="8bd7d784-31d5-4536-9fe2-416a3dc968b8" Name="Plugins Manager" Language="1033" Codepage="Windows-1252" Version="1.0.0" UpgradeCode="8bd7d784-31d5-4536-9fe2-416a2dc958b8" Manufacturer="user">
-    <Package InstallerVersion="200" Compressed="yes" SummaryCodepage="Windows-1252" InstallPrivileges="limited" Languages="1033" />
+  <Product Id="8bd7d784-31d5-4536-9fe2-416a3dc968b8" Name="Plugins Manager" Language="1049" Codepage="windows-1251" Version="1.0.0" UpgradeCode="8bd7d784-31d5-4536-9fe2-416a2dc958b8" Manufacturer="user">
+    <Package InstallerVersion="200" Compressed="yes" Description="asfasf" SummaryCodepage="windows-1251" InstallPrivileges="limited" Languages="1049" />
     <Media Id="1" Cabinet="Plugins20Manager.cab" EmbedCab="yes" />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -27,7 +27,6 @@
                 </Component>
 
                 <Component Id="Component.PluginsManagerAdminTools.addin_3801788282" Guid="8bd7d784-31d5-4536-9fe2-416a38137cf0">
-                  <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
                   <File Id="PluginsManagerAdminTools.addin_3801788282" Source="..\PluginsManager.AdminTools\PluginsManagerAdminTools.addin" />
 
                   <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
@@ -35,20 +34,19 @@
                   </RegistryKey>
                 </Component>
 
-                <Directory Id="SUBFOLDER_2026" Name="PluginsManager">
+                <Directory Id="SUBFOLDER26" Name="PluginsManager">
 
-                  <Component Id="Component.PluginsManager.dll_1643199736" Guid="8bd7d784-31d5-4536-9fe2-416abc623ef9">
-                    <File Id="PluginsManager.dll_1643199736" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
-                    <RemoveFolder Id="SUBFOLDER_2026" On="uninstall" />
+                  <Component Id="Component.PluginsManager.AdminTools.dll_3757246142" Guid="8bd7d784-31d5-4536-9fe2-416a54fed6da">
+                    <File Id="PluginsManager.AdminTools.dll_3757246142" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                    <RemoveFolder Id="SUBFOLDER26" On="uninstall" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
                     </RegistryKey>
                   </Component>
 
-                  <Component Id="Component.PluginsManager.AdminTools.dll_3757246142" Guid="8bd7d784-31d5-4536-9fe2-416a54fed6da">
-                    <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
-                    <File Id="PluginsManager.AdminTools.dll_3757246142" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                  <Component Id="Component.PluginsManager.dll_1643199736" Guid="8bd7d784-31d5-4536-9fe2-416abc623ef9">
+                    <File Id="PluginsManager.dll_1643199736" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
@@ -70,7 +68,6 @@
                 </Component>
 
                 <Component Id="Component.PluginsManagerAdminTools.addin_2178770037" Guid="8bd7d784-31d5-4536-9fe2-416adab9a610">
-                  <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
                   <File Id="PluginsManagerAdminTools.addin_2178770037" Source="..\PluginsManager.AdminTools\PluginsManagerAdminTools.addin" />
 
                   <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
@@ -78,20 +75,19 @@
                   </RegistryKey>
                 </Component>
 
-                <Directory Id="SUBFOLDER_2025" Name="PluginsManager">
+                <Directory Id="SUBFOLDER25" Name="PluginsManager">
 
-                  <Component Id="Component.PluginsManager.dll_1219181189" Guid="8bd7d784-31d5-4536-9fe2-416ad809cca1">
-                    <File Id="PluginsManager.dll_1219181189" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
-                    <RemoveFolder Id="SUBFOLDER_2025" On="uninstall" />
+                  <Component Id="Component.PluginsManager.AdminTools.dll_660311997" Guid="8bd7d784-31d5-4536-9fe2-416ac5eed683">
+                    <File Id="PluginsManager.AdminTools.dll_660311997" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                    <RemoveFolder Id="SUBFOLDER25" On="uninstall" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
                     </RegistryKey>
                   </Component>
 
-                  <Component Id="Component.PluginsManager.AdminTools.dll_660311997" Guid="8bd7d784-31d5-4536-9fe2-416ac5eed683">
-                    <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
-                    <File Id="PluginsManager.AdminTools.dll_660311997" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                  <Component Id="Component.PluginsManager.dll_1219181189" Guid="8bd7d784-31d5-4536-9fe2-416ad809cca1">
+                    <File Id="PluginsManager.dll_1219181189" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
@@ -113,7 +109,6 @@
                 </Component>
 
                 <Component Id="Component.PluginsManagerAdminTools.addin_1640515491" Guid="8bd7d784-31d5-4536-9fe2-416af1bb1a9b">
-                  <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
                   <File Id="PluginsManagerAdminTools.addin_1640515491" Source="..\PluginsManager.AdminTools\PluginsManagerAdminTools.addin" />
 
                   <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
@@ -121,20 +116,19 @@
                   </RegistryKey>
                 </Component>
 
-                <Directory Id="SUBFOLDER_2024" Name="PluginsManager">
+                <Directory Id="SUBFOLDER24" Name="PluginsManager">
 
-                  <Component Id="Component.PluginsManager.dll_979162095" Guid="8bd7d784-31d5-4536-9fe2-416a975165aa">
-                    <File Id="PluginsManager.dll_979162095" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
-                    <RemoveFolder Id="SUBFOLDER_2024" On="uninstall" />
+                  <Component Id="Component.PluginsManager.AdminTools.dll_3697097093" Guid="8bd7d784-31d5-4536-9fe2-416a7bfd890a">
+                    <File Id="PluginsManager.AdminTools.dll_3697097093" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                    <RemoveFolder Id="SUBFOLDER24" On="uninstall" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
                     </RegistryKey>
                   </Component>
 
-                  <Component Id="Component.PluginsManager.AdminTools.dll_3697097093" Guid="8bd7d784-31d5-4536-9fe2-416a7bfd890a">
-                    <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
-                    <File Id="PluginsManager.AdminTools.dll_3697097093" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                  <Component Id="Component.PluginsManager.dll_979162095" Guid="8bd7d784-31d5-4536-9fe2-416a975165aa">
+                    <File Id="PluginsManager.dll_979162095" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
@@ -156,7 +150,6 @@
                 </Component>
 
                 <Component Id="Component.PluginsManagerAdminTools.addin_3011632944" Guid="8bd7d784-31d5-4536-9fe2-416a3c2f9eb8">
-                  <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
                   <File Id="PluginsManagerAdminTools.addin_3011632944" Source="..\PluginsManager.AdminTools\PluginsManagerAdminTools.addin" />
 
                   <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
@@ -164,20 +157,19 @@
                   </RegistryKey>
                 </Component>
 
-                <Directory Id="SUBFOLDER_2023" Name="PluginsManager">
+                <Directory Id="SUBFOLDER23" Name="PluginsManager">
 
-                  <Component Id="Component.PluginsManager.dll_3364778367" Guid="8bd7d784-31d5-4536-9fe2-416a2e0cd254">
-                    <File Id="PluginsManager.dll_3364778367" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
-                    <RemoveFolder Id="SUBFOLDER_2023" On="uninstall" />
+                  <Component Id="Component.PluginsManager.AdminTools.dll_2863135769" Guid="8bd7d784-31d5-4536-9fe2-416a1ba22ff0">
+                    <File Id="PluginsManager.AdminTools.dll_2863135769" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                    <RemoveFolder Id="SUBFOLDER23" On="uninstall" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
                     </RegistryKey>
                   </Component>
 
-                  <Component Id="Component.PluginsManager.AdminTools.dll_2863135769" Guid="8bd7d784-31d5-4536-9fe2-416a1ba22ff0">
-                    <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
-                    <File Id="PluginsManager.AdminTools.dll_2863135769" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                  <Component Id="Component.PluginsManager.dll_3364778367" Guid="8bd7d784-31d5-4536-9fe2-416a2e0cd254">
+                    <File Id="PluginsManager.dll_3364778367" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
@@ -199,7 +191,6 @@
                 </Component>
 
                 <Component Id="Component.PluginsManagerAdminTools.addin_543091721" Guid="8bd7d784-31d5-4536-9fe2-416a8e194748">
-                  <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
                   <File Id="PluginsManagerAdminTools.addin_543091721" Source="..\PluginsManager.AdminTools\PluginsManagerAdminTools.addin" />
 
                   <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
@@ -207,20 +198,19 @@
                   </RegistryKey>
                 </Component>
 
-                <Directory Id="SUBFOLDER_2022" Name="PluginsManager">
+                <Directory Id="SUBFOLDER22" Name="PluginsManager">
 
-                  <Component Id="Component.PluginsManager.dll_1993048656" Guid="8bd7d784-31d5-4536-9fe2-416a47311060">
-                    <File Id="PluginsManager.dll_1993048656" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
-                    <RemoveFolder Id="SUBFOLDER_2022" On="uninstall" />
+                  <Component Id="Component.PluginsManager.AdminTools.dll_2612056471" Guid="8bd7d784-31d5-4536-9fe2-416a319b4d3a">
+                    <File Id="PluginsManager.AdminTools.dll_2612056471" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                    <RemoveFolder Id="SUBFOLDER22" On="uninstall" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
                     </RegistryKey>
                   </Component>
 
-                  <Component Id="Component.PluginsManager.AdminTools.dll_2612056471" Guid="8bd7d784-31d5-4536-9fe2-416a319b4d3a">
-                    <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
-                    <File Id="PluginsManager.AdminTools.dll_2612056471" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                  <Component Id="Component.PluginsManager.dll_1993048656" Guid="8bd7d784-31d5-4536-9fe2-416a47311060">
+                    <File Id="PluginsManager.dll_1993048656" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
@@ -242,7 +232,6 @@
                 </Component>
 
                 <Component Id="Component.PluginsManagerAdminTools.addin_1208278215" Guid="8bd7d784-31d5-4536-9fe2-416a95e11ac7">
-                  <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
                   <File Id="PluginsManagerAdminTools.addin_1208278215" Source="..\PluginsManager.AdminTools\PluginsManagerAdminTools.addin" />
 
                   <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
@@ -250,20 +239,19 @@
                   </RegistryKey>
                 </Component>
 
-                <Directory Id="SUBFOLDER_2021" Name="PluginsManager">
+                <Directory Id="SUBFOLDER21" Name="PluginsManager">
 
-                  <Component Id="Component.PluginsManager.dll_2704920217" Guid="8bd7d784-31d5-4536-9fe2-416ac2e70b80">
-                    <File Id="PluginsManager.dll_2704920217" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
-                    <RemoveFolder Id="SUBFOLDER_2021" On="uninstall" />
+                  <Component Id="Component.PluginsManager.AdminTools.dll_3450056977" Guid="8bd7d784-31d5-4536-9fe2-416a0906d627">
+                    <File Id="PluginsManager.AdminTools.dll_3450056977" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                    <RemoveFolder Id="SUBFOLDER21" On="uninstall" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
                     </RegistryKey>
                   </Component>
 
-                  <Component Id="Component.PluginsManager.AdminTools.dll_3450056977" Guid="8bd7d784-31d5-4536-9fe2-416a0906d627">
-                    <Condition>REMOVE = "ALL" OR INSTALL_ADMIN = "1"</Condition>
-                    <File Id="PluginsManager.AdminTools.dll_3450056977" Source="..\PluginsManager.AdminTools\bin\Build\PluginsManager.AdminTools.dll" />
+                  <Component Id="Component.PluginsManager.dll_2704920217" Guid="8bd7d784-31d5-4536-9fe2-416ac2e70b80">
+                    <File Id="PluginsManager.dll_2704920217" Source="..\PluginsManager\bin\Build\PluginsManager.dll" />
 
                     <RegistryKey Root="HKCU" Key="Software\WixSharp\Used">
                       <RegistryValue Value="0" Type="string" KeyPath="yes" />
@@ -305,68 +293,52 @@
       </Directory>
     </Directory>
 
-    <UI />
+    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
 
-    <UI>
-      <EmbeddedUI Id="WixSharp_EmbeddedUI_Asm" SourceFile="..\WixSharp.UI.CA.dll" />
-    </UI>
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="Уже установлена более новая версия [ProductName]." Schedule="afterInstallInitialize" />
 
-    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of this product is already installed." />
-
-    <CustomAction Id="WixSharp_InitRuntime_Action" BinaryKey="WixSharp_InitRuntime_Action_File" DllEntry="WixSharp_InitRuntime_Action" Return="check" Execute="immediate" />
-    <CustomAction Id="Set_CancelRequestHandler_Props" Property="CancelRequestHandler" Value="UpgradeCode=[UpgradeCode];INSTALLDIR=[INSTALLDIR];UILevel=[UILevel];ProductCode=[ProductCode];ADDLOCAL=[ADDLOCAL];ADDFEATURES=[ADDFEATURES]" />
-    <CustomAction Id="CancelRequestHandler" BinaryKey="WixSharp_InitRuntime_Action_File" DllEntry="CancelRequestHandler" Return="check" Impersonate="no" Execute="deferred" />
-
-    <Binary Id="WixSharp_InitRuntime_Action_File" SourceFile="..\WixSharp.CA.dll" />
-    <Binary Id="WixSharp_UIText" SourceFile="..\..\..\..\..\.nuget\packages\wixsharp.wix.bin\3.14.1\tools\sdk\wixui\WixUI_en-US.wxl" />
-    <Binary Id="WixSharp_LicenceFile" SourceFile="..\Plugins Manager.licence.rtf" />
-    <Binary Id="WixUI_Bmp_Dialog" SourceFile="..\Plugins Manager.dialog_bmp.png" />
-    <Binary Id="WixUI_Bmp_Banner" SourceFile="..\Plugins Manager.dialog_banner.png" />
-
+    <UIRef Id="WixUI_FeatureTree" />
     <UIRef Id="WixUI_ErrorProgressText" />
 
-    <Property Id="INSTALL_ADMIN" Value="0" />
-    <Property Id="UI_AUTOSCALEMODE" Value="Font" />
-    <Property Id="WixSharp_UI_INSTALLDIR" Value="INSTALLDIR" />
-    <Property Id="UAC_WARNING" Value="Please wait for UAC prompt to appear.&#xD;&#xA;&#xD;&#xA;If it appears minimized then activate it from the taskbar." />
-    <Property Id="WixSharp_InstallDialogs" Value="Build, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null|Build.AdminChoiceDialog&#xA;WixSharp.UI, Version=1.26.0.0, Culture=neutral, PublicKeyToken=3775edd25acc43c2|WixSharp.UI.Forms.ProgressDialog&#xA;WixSharp.UI, Version=1.26.0.0, Culture=neutral, PublicKeyToken=3775edd25acc43c2|WixSharp.UI.Forms.ExitDialog" />
     <Property Id="REINSTALLMODE" Value="omus" />
 
-    <Feature Id="Complete" Title="Complete" Absent="allow" Level="1">
-      <ComponentRef Id="Component.PluginsManager.addin_2481324495" />
+    <Feature Id="Admin20Tools" Title="Admin Tools" Absent="allow" Level="1">
+      <Condition Level="100"><![CDATA[1]]></Condition>
+
       <ComponentRef Id="Component.PluginsManagerAdminTools.addin_3801788282" />
-      <ComponentRef Id="Component.PluginsManager.dll_1643199736" />
       <ComponentRef Id="Component.PluginsManager.AdminTools.dll_3757246142" />
-      <ComponentRef Id="Component.PluginsManager.addin_2946916045" />
       <ComponentRef Id="Component.PluginsManagerAdminTools.addin_2178770037" />
-      <ComponentRef Id="Component.PluginsManager.dll_1219181189" />
       <ComponentRef Id="Component.PluginsManager.AdminTools.dll_660311997" />
-      <ComponentRef Id="Component.PluginsManager.addin_1412529645" />
       <ComponentRef Id="Component.PluginsManagerAdminTools.addin_1640515491" />
-      <ComponentRef Id="Component.PluginsManager.dll_979162095" />
       <ComponentRef Id="Component.PluginsManager.AdminTools.dll_3697097093" />
-      <ComponentRef Id="Component.PluginsManager.addin_1004759148" />
       <ComponentRef Id="Component.PluginsManagerAdminTools.addin_3011632944" />
-      <ComponentRef Id="Component.PluginsManager.dll_3364778367" />
       <ComponentRef Id="Component.PluginsManager.AdminTools.dll_2863135769" />
-      <ComponentRef Id="Component.PluginsManager.addin_70931861" />
       <ComponentRef Id="Component.PluginsManagerAdminTools.addin_543091721" />
-      <ComponentRef Id="Component.PluginsManager.dll_1993048656" />
       <ComponentRef Id="Component.PluginsManager.AdminTools.dll_2612056471" />
-      <ComponentRef Id="Component.PluginsManager.addin_1511678929" />
       <ComponentRef Id="Component.PluginsManagerAdminTools.addin_1208278215" />
-      <ComponentRef Id="Component.PluginsManager.dll_2704920217" />
       <ComponentRef Id="Component.PluginsManager.AdminTools.dll_3450056977" />
       <ComponentRef Id="Autodesk" />
       <ComponentRef Id="Revit" />
       <ComponentRef Id="INSTALLDIR" />
     </Feature>
 
-    <InstallExecuteSequence>
-      <Custom Action="WixSharp_InitRuntime_Action" Before="AppSearch"> (1) </Custom>
-      <Custom Action="Set_CancelRequestHandler_Props" Before="InstallFinalize" />
-      <Custom Action="CancelRequestHandler" After="Set_CancelRequestHandler_Props"> (1) </Custom>
-    </InstallExecuteSequence>
+    <Feature Id="Complete" Title="Complete" Absent="allow" Level="1">
+      <ComponentRef Id="Component.PluginsManager.addin_2481324495" />
+      <ComponentRef Id="Component.PluginsManager.dll_1643199736" />
+      <ComponentRef Id="Component.PluginsManager.addin_2946916045" />
+      <ComponentRef Id="Component.PluginsManager.dll_1219181189" />
+      <ComponentRef Id="Component.PluginsManager.addin_1412529645" />
+      <ComponentRef Id="Component.PluginsManager.dll_979162095" />
+      <ComponentRef Id="Component.PluginsManager.addin_1004759148" />
+      <ComponentRef Id="Component.PluginsManager.dll_3364778367" />
+      <ComponentRef Id="Component.PluginsManager.addin_70931861" />
+      <ComponentRef Id="Component.PluginsManager.dll_1993048656" />
+      <ComponentRef Id="Component.PluginsManager.addin_1511678929" />
+      <ComponentRef Id="Component.PluginsManager.dll_2704920217" />
+      <ComponentRef Id="Autodesk" />
+      <ComponentRef Id="Revit" />
+      <ComponentRef Id="INSTALLDIR" />
+    </Feature>
 
   </Product>
 </Wix>

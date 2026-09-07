@@ -65,6 +65,7 @@
     <Compile Include="Properties.cs" />
     <Compile Include="Installer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="license.rtf" />
     <None Include="packages.config" />
     <None Include="wix\$(ProjectName).g.wxs" />
   </ItemGroup>

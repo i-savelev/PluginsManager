@@ -1,8 +1,9 @@
 ﻿using PluginsManager;
 using System;
 using System.IO;
+using System.Linq;
 using WixSharp;
-using WixSharp.UI.Forms;
+using static WixSharp.Win32;
 
 namespace Build
 {
@@ -12,50 +13,113 @@ namespace Build
 
         static void Main(string[] args)
         {
+            // Основные файлы
             var addin_file = Path.GetFullPath(Properties.AddinPath);
             var source_dll_folder = Path.GetFullPath(Properties.DllFolder);
-
-            var admin_addin_file = Path.GetFullPath(Properties.AdminAddinPath);
-            var admin_dll_folder = Path.GetFullPath(Properties.AdminDllFolder);
-
             var subfolder_name = Properties.SubfolderName;
 
-            var project = new ManagedProject(Properties.ProjectName,
-                new Property("INSTALL_ADMIN", "0"),
+            // Admin Tools файлы
+            var admin_addin_file = Path.GetFullPath(Properties.AdminAddinPath);
+            var admin_dll_folder = Path.GetFullPath(Properties.AdminDllFolder);
+            var admin_dll_file = Path.Combine(admin_dll_folder, Properties.AdminDllFileName);
+
+            // Фича для Admin Tools: 
+            // Level = 100 гарантирует, что она НЕ установлена по умолчанию (INSTALLLEVEL по умолчанию = 3),
+            // но пользователь сможет явно выбрать её в диалоге WixUI_FeatureTree.
+            var adminFeature = new Feature("Admin Tools")
+            {
+                Condition = new FeatureCondition("1", 100)
+            };
+
+            var project = new Project(Properties.ProjectName,
                 new Dir(@"%AppDataFolder%",
                     new Dir("Autodesk",
                         new Dir("Revit",
                             new Dir("Addins",
-                                CreateYearDir("2026", addin_file, source_dll_folder, admin_addin_file, admin_dll_folder, subfolder_name),
-                                CreateYearDir("2025", addin_file, source_dll_folder, admin_addin_file, admin_dll_folder, subfolder_name),
-                                CreateYearDir("2024", addin_file, source_dll_folder, admin_addin_file, admin_dll_folder, subfolder_name),
-                                CreateYearDir("2023", addin_file, source_dll_folder, admin_addin_file, admin_dll_folder, subfolder_name),
-                                CreateYearDir("2022", addin_file, source_dll_folder, admin_addin_file, admin_dll_folder, subfolder_name),
-                                CreateYearDir("2021", addin_file, source_dll_folder, admin_addin_file, admin_dll_folder, subfolder_name)
+                                // 2026
+                                new Dir("2026",
+                                    new WixSharp.File(addin_file),
+                                    new WixSharp.File(adminFeature, admin_addin_file),
+                                    new Dir(new Id("SUBFOLDER26"), subfolder_name,
+                                        new Files(source_dll_folder + "*.*"),
+                                        new WixSharp.File(adminFeature, admin_dll_file)
+                                    )
+                                ),
+                                // 2025
+                                new Dir("2025",
+                                    new WixSharp.File(addin_file),
+                                    new WixSharp.File(adminFeature, admin_addin_file),
+                                    new Dir(new Id("SUBFOLDER25"), subfolder_name,
+                                        new Files(source_dll_folder + "*.*"),
+                                        new WixSharp.File(adminFeature, admin_dll_file)
+                                    )
+                                ),
+                                // 2024
+                                new Dir("2024",
+                                    new WixSharp.File(addin_file),
+                                    new WixSharp.File(adminFeature, admin_addin_file),
+                                    new Dir(new Id("SUBFOLDER24"), subfolder_name,
+                                        new Files(source_dll_folder + "*.*"),
+                                        new WixSharp.File(adminFeature, admin_dll_file)
+                                    )
+                                ),
+                                // 2023
+                                new Dir("2023",
+                                    new WixSharp.File(addin_file),
+                                    new WixSharp.File(adminFeature, admin_addin_file),
+                                    new Dir(new Id("SUBFOLDER23"), subfolder_name,
+                                        new Files(source_dll_folder + "*.*"),
+                                        new WixSharp.File(adminFeature, admin_dll_file)
+                                    )
+                                ),
+                                // 2022
+                                new Dir("2022",
+                                    new WixSharp.File(addin_file),
+                                    new WixSharp.File(adminFeature, admin_addin_file),
+                                    new Dir(new Id("SUBFOLDER22"), subfolder_name,
+                                        new Files(source_dll_folder + "*.*"),
+                                        new WixSharp.File(adminFeature, admin_dll_file)
+                                    )
+                                ),
+                                // 2021
+                                new Dir("2021",
+                                    new WixSharp.File(addin_file),
+                                    new WixSharp.File(adminFeature, admin_addin_file),
+                                    new Dir(new Id("SUBFOLDER21"), subfolder_name,
+                                        new Files(source_dll_folder + "*.*"),
+                                        new WixSharp.File(adminFeature, admin_dll_file)
+                                    )
+                                )
                             )
                         )
                     )
                 )
             );
-
-            project.GUID = new Guid(Properties.Guid);
-            project.UpgradeCode = new Guid(Properties.UpgradeGuid);
-
-            project.MajorUpgrade = new MajorUpgrade
+            project.Language = "ru-RU"; // Русский язык
+            project.WixSourceGenerated += (doc) =>
             {
-                AllowSameVersionUpgrades = true,
-                DowngradeErrorMessage = "A newer version of this product is already installed."
-            };
+                // Устанавливаем кодовую страницу для Product
+                var product = doc.Root.Descendants("Product").FirstOrDefault();
+                product?.SetAttributeValue("Codepage", "1251");
 
+                // Также для Package
+                var package = doc.Root.Descendants("Package").FirstOrDefault();
+                package?.SetAttributeValue("Codepage", "1251");
+            };
+            project.LicenceFile = @"license.rtf";
+            project.GUID = new Guid(Properties.Guid);
             project.OutFileName = Properties.ProjectName;
-            project.Version = new Version(version);
+            project.Description = "asfasf";
+            project.Version = new Version(version); 
+            project.UI = WUI.WixUI_FeatureTree;
             project.OutDir = Properties.OutputDir;
             project.InstallPrivileges = InstallPrivileges.limited;
-
-            project.ManagedUI = new ManagedUI();
-            project.ManagedUI.InstallDialogs.Add<AdminChoiceDialog>()
-                                              .Add<ProgressDialog>()
-                                              .Add<ExitDialog>();
+            project.MajorUpgrade = new MajorUpgrade
+            {
+                Schedule = UpgradeSchedule.afterInstallInitialize,
+                DowngradeErrorMessage = "Уже установлена более новая версия [ProductName].",
+                AllowSameVersionUpgrades = true // <-- Разрешает перезапись при совпадении версий
+            };
 
             try
             {
@@ -66,22 +130,6 @@ namespace Build
             {
                 Console.WriteLine($"Error creating MSI: {ex.Message}");
             }
-        }
-
-        private static Dir CreateYearDir(string year, string addinFile, string dllFolder, string adminAddinFile, string adminDllFolder, string subfolderName)
-        {
-            var adminCondition = new Condition("REMOVE = \"ALL\" OR INSTALL_ADMIN = \"1\"");
-            var subfolderId = new Id($"SUBFOLDER_{year}");
-
-            return new Dir(year,
-                new WixSharp.File(addinFile),
-                new WixSharp.File(adminAddinFile) { Condition = adminCondition },
-
-                new Dir(subfolderId, subfolderName,
-                    new WixSharp.File(Path.Combine(dllFolder, Properties.DllFileName)),
-                    new WixSharp.File(Path.Combine(adminDllFolder, Properties.AdminDllFileName)) { Condition = adminCondition }
-                )
-            );
         }
     }
 }

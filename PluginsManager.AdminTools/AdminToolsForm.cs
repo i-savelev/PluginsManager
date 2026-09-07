@@ -500,19 +500,47 @@ namespace PluginsManager.AdminTools
                     var destPath = Path.Combine(imgDir, fileName);
                     try
                     {
-                        File.Copy(sourcePath, destPath, overwrite: true);
-                        Logger.Info($"[AdminToolsForm] Изображение скопировано: {fileName}");
+                        // 1. Читаем байты оригинала без блокировки файла
+                        byte[] originalBytes = File.ReadAllBytes(sourcePath);
+                        System.Drawing.Imaging.ImageFormat format;
 
-                        _dataGridView.Rows[rowIndex].Cells["ImageFileName"].Value = fileName;
-
-                        using (var stream = new MemoryStream(File.ReadAllBytes(destPath)))
+                        // 2. Открываем, определяем формат, масштабируем и сохраняем
+                        using (var ms = new MemoryStream(originalBytes))
+                        using (var originalImg = Image.FromStream(ms))
                         {
-                            var originalImg = Image.FromStream(stream);
-                            var resizedImg = ResizeImage(originalImg, 50);
-                            _dataGridView.Rows[rowIndex].Cells["Preview"].Value = (object)resizedImg ?? DBNull.Value;
+                            format = GetImageFormat(originalImg, sourcePath);
+
+                            using (var resizedImg = ResizeImage(originalImg, 50))
+                            {
+                                if (format.Equals(System.Drawing.Imaging.ImageFormat.Jpeg))
+                                {
+                                    // Для JPEG обязательно задаем качество, чтобы GDI+ не сломал заголовки
+                                    var encoder = System.Drawing.Imaging.ImageCodecInfo.GetImageEncoders()
+                                        .First(c => c.FormatID == System.Drawing.Imaging.ImageFormat.Jpeg.Guid);
+                                    var encoderParams = new System.Drawing.Imaging.EncoderParameters(1);
+                                    encoderParams.Param[0] = new System.Drawing.Imaging.EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 100L);
+                                    resizedImg.Save(destPath, encoder, encoderParams);
+                                }
+                                else
+                                {
+                                    // PNG, GIF, BMP сохраняем в их нативных форматах (сохраняя прозрачность для PNG/GIF)
+                                    resizedImg.Save(destPath, format);
+                                }
+                            }
                         }
 
-                        _statusLabel.Text = $"Изображение выбрано: {fileName}";
+                        Logger.Info($"[AdminToolsForm] Изображение добавлено и масштабировано (50x50): {fileName}");
+
+                        // 3. Обновляем UI
+                        _dataGridView.Rows[rowIndex].Cells["ImageFileName"].Value = fileName;
+
+                        using (var savedStream = new MemoryStream(File.ReadAllBytes(destPath)))
+                        {
+                            var displayImg = Image.FromStream(savedStream);
+                            _dataGridView.Rows[rowIndex].Cells["Preview"].Value = displayImg;
+                        }
+
+                        _statusLabel.Text = $"Изображение добавлено (50x50): {fileName}";
                     }
                     catch (Exception ex)
                     {
@@ -521,6 +549,19 @@ namespace PluginsManager.AdminTools
                     }
                 }
             }
+        }
+
+        private System.Drawing.Imaging.ImageFormat GetImageFormat(Image img, string path)
+        {
+            if (img.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Png)) return System.Drawing.Imaging.ImageFormat.Png;
+            if (img.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Jpeg)) return System.Drawing.Imaging.ImageFormat.Jpeg;
+            if (img.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Gif)) return System.Drawing.Imaging.ImageFormat.Gif;
+            if (img.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Bmp)) return System.Drawing.Imaging.ImageFormat.Bmp;
+            if (img.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Icon)) return System.Drawing.Imaging.ImageFormat.Icon;
+
+            // Фоллбэк по расширению файла, если RawFormat не распознан
+            var ext = Path.GetExtension(path)?.ToLower();
+            return ext == ".png" ? System.Drawing.Imaging.ImageFormat.Png : System.Drawing.Imaging.ImageFormat.Jpeg;
         }
 
         private void BtnSave_Click(object sender, EventArgs e)

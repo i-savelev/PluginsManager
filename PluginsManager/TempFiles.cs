@@ -50,7 +50,10 @@ namespace PluginsManager
                     }
                     CopyDirectory(sourceDirectory, PathManager.tempDllDir);
                 }
-
+                if (Directory.Exists(PathManager.tempDllDir))
+                {
+                    UnblockDllFiles(PathManager.tempDllDir);
+                }
                 stopwatch.Stop();
                 Logger.Info($"Копирование завершено за {stopwatch.ElapsedMilliseconds} ms");
             }
@@ -92,6 +95,26 @@ namespace PluginsManager
                 size += GetDirectorySize(dir);
             }
             return size;
+        }
+
+        private static void UnblockDllFiles(string directory)
+        {
+            Logger.Info($"Снятие блокировки (Zone.Identifier) для DLL в [{directory}]");
+
+            foreach (var dllFile in Directory.GetFiles(directory, "*.dll", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    // Удаляем альтернативный поток данных Zone.Identifier (Mark of the Web)
+                    File.Delete(dllFile + ":Zone.Identifier");
+                }
+                catch
+                {
+                    // Игнорируем ошибки, если у файла нет этого потока (он не был заблокирован)
+                }
+            }
+
+            Logger.Info("Снятие блокировки завершено.");
         }
     }
 }

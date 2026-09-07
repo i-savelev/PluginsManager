@@ -16,12 +16,12 @@ PluginsManager - плагин для Revit, который позволяет с
 
 Плагин рсполагается на вкладке "Надстройки" и при первом запуске предлагает выбрать папку с dll файлами.
 
-<img width="258" height="120" alt="изображение" src="https://github.com/user-attachments/assets/36abb0e2-e69b-4333-9ffa-9f61e64e871b" />
+<img width="250" alt="изображение" src="https://github.com/user-attachments/assets/36abb0e2-e69b-4333-9ffa-9f61e64e871b" />
 
 
 После выбора папки и при последующих запусках будет появляться основное окно плагина
 
-<img width="389" height="640" alt="изображение" src="https://github.com/user-attachments/assets/130b2811-2a44-42ea-a86e-e317c455695c" />
+<img width="350" alt="изображение" src="https://github.com/user-attachments/assets/130b2811-2a44-42ea-a86e-e317c455695c" />
 
 
 1. Кнопка пользовательских настроек: путь к папке с файлами dll и настройкой отображения вкладок (см. п. [Настройки-пользователя](#Настройки-пользователя))
@@ -59,7 +59,7 @@ public static string IS_DESCRIPTION => "Описание";
 
 Все настройки хранятся в рядом с исходными dll в файле `commands_config.xml`.
 
-<img width="1036" height="648" alt="изображение" src="https://github.com/user-attachments/assets/ce40c72d-a3e4-4e9a-a5cf-f6d900d5a6d3" />
+<img width="800" alt="изображение" src="https://github.com/user-attachments/assets/ce40c72d-a3e4-4e9a-a5cf-f6d900d5a6d3" />
 
 *В названии вкладки можно указать несколько вкладок через знак "|", чтобы команда попала сразу на несколько вкладок. Например, "АР|КР".
 

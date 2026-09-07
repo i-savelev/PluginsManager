@@ -89,10 +89,10 @@ namespace PluginsManager.AdminTools
                 BackColor = Color.FromArgb(240, 240, 240)
             };
 
-            _btnCancel = new Button { Text = "✖ Отмена", Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
+            _btnCancel = new Button { Text = "Отмена", Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
             _btnCancel.Click += BtnCancel_Click;
 
-            _btnSave = new Button { Text = "💾 Сохранить", Width = 120, Height = 30 };
+            _btnSave = new Button { Text = "Сохранить", Width = 120, Height = 30 };
             _btnSave.Click += BtnSave_Click;
 
             buttonPanel.Controls.Add(_btnCancel);

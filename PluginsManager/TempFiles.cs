@@ -97,24 +97,46 @@ namespace PluginsManager
             return size;
         }
 
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern bool DeleteFile(string lpFileName);
+
         private static void UnblockDllFiles(string directory)
         {
             Logger.Info($"Снятие блокировки (Zone.Identifier) для DLL в [{directory}]");
 
-            foreach (var dllFile in Directory.GetFiles(directory, "*.dll", SearchOption.AllDirectories))
+            var dllFiles = Directory.GetFiles(directory, "*.dll", SearchOption.AllDirectories);
+            Logger.Info($"Найдено DLL файлов: {dllFiles.Length}");
+
+            int unblocked = 0;
+            int notBlocked = 0;
+            int failed = 0;
+
+            foreach (var dllFile in dllFiles)
             {
-                try
+                var adsPath = dllFile + ":Zone.Identifier";
+
+                bool result = DeleteFile(adsPath);
+                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+
+                if (result)
                 {
-                    // Удаляем альтернативный поток данных Zone.Identifier (Mark of the Web)
-                    File.Delete(dllFile + ":Zone.Identifier");
+                    Logger.Debug($"Успешно удален Zone.Identifier для: {Path.GetFileName(dllFile)}");
+                    unblocked++;
                 }
-                catch
+                else if (error == 2) // ERROR_FILE_NOT_FOUND
                 {
-                    // Игнорируем ошибки, если у файла нет этого потока (он не был заблокирован)
+                    Logger.Debug($"Zone.Identifier отсутствует для: {Path.GetFileName(dllFile)}");
+                    notBlocked++;
+                }
+                else
+                {
+                    Logger.Warning($"Ошибка {error} для {Path.GetFileName(dllFile)}");
+                    failed++;
                 }
             }
 
-            Logger.Info("Снятие блокировки завершено.");
+            Logger.Info($"Снятие блокировки завершено: Разблокировано={unblocked}, Не были заблокированы={notBlocked}, Ошибок={failed}");
         }
+
     }
 }
